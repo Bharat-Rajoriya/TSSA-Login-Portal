@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Service Prepayment Portal - TSSA</title>
+    <link rel="stylesheet" href="../../style.css">
+    <link rel="stylesheet" href="../css/footer.css">
+    <link rel="stylesheet" href="../css/nav.css">
+    <script src="../js/site-nav.js"></script>
+    <script src="../js/site-footer.js"></script>
+
+    <!-- jQuery CDN -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+
+</head>
+<body>
+    <nav id="siteNav" class="div" aria-label="Primary navigation"></nav>
+
+    <main>
+        
+        <div class="header-title ">
+            <h1>TSSA Service Prepayment Portal</h1>
+        </div>
+
+<div class="container">
+    <div id="formSelectErrorBox" class="form-error-box" style="display:none;">
+        <strong>Please review the following errors</strong>
+        <ul id="formSelectErrorList"></ul>
+    </div>
+
+    <section class="form-selection-section">
+
+        <p class="required-note">Required fields are marked with asterisks (<span style="color: var(--color-primary);">*</span>)</p>
+
+        <p id="dynamicProgramInstruction"></p>
+
+        <div class="form-grid">
+            <div class="form-field form-field-full">
+                <label for="applicationFormSelect">
+                    Application Form Number (obtain from bottom left of your application form) <span>*</span>
+                </label>
+
+                <select id="applicationFormSelect">
+                    <option value="">Please select an Application Form.</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="formDescriptionTable"></div>
+
+        <div class="form-actions dual-btns">
+            <button class="back-btn">Back</button>
+            <button class="continue-form-btn">Continue</button>
+        </div>
+    </section>
+</div>
+
+    </main>
+
+    <footer id="siteFooter"></footer>
+
+    <script src="../js/form-selection.js"></script>
+</body>
+</html>

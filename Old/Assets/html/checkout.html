@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Service Prepayment Portal - TSSA</title>
+    <link rel="stylesheet" href="../../style.css">
+    <link rel="stylesheet" href="../css/footer.css">
+    <link rel="stylesheet" href="../css/nav.css">
+    <script src="../js/site-nav.js"></script>
+    <script src="../js/site-footer.js"></script>
+
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+</head>
+<body>
+    <nav id="siteNav" class="div" aria-label="Primary navigation"></nav>
+
+    <main>
+        <div class="header-title">
+            <h1>TSSA Service Prepayment Portal</h1>
+        </div>
+
+        <div class="container">
+            <div id="checkoutErrorBox" class="form-error-box" style="display:none;">
+                <strong>Please review the following errors</strong>
+                <ul id="checkoutErrorList"></ul>
+            </div>
+
+            <section class="checkout-section" aria-labelledby="checkout-heading">
+                <div class="accepted-cards" aria-label="Accepted payment cards">
+                    <span>We accept:</span>
+                    <span class="card-badge card-mastercard">Mastercard</span>
+                    <span class="card-badge card-visa">VISA</span>
+                    <span class="card-badge card-debit">VISA Debit</span>
+                </div>
+
+                <p class="checkout-intro">
+                    Please review the following amounts and proceed with payment to complete your service prepayment request. Your credit card payment is processed on a secure payment site.
+                </p>
+
+                <table class="checkout-summary" aria-label="Payment summary">
+                    <thead>
+                        <tr>
+                            <th scope="col">Description</th>
+                            <th scope="col">Cost</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Total Prepayment</td>
+                            <td id="checkoutPrepayment">$0.00</td>
+                        </tr>
+                        <tr>
+                            <td>Subtotal:</td>
+                            <td id="checkoutSubtotal">$0.00</td>
+                        </tr>
+                        <tr class="checkout-total-row">
+                            <td>Total:</td>
+                            <td id="checkoutTotal">$0.00</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <form id="checkoutForm" class="checkout-payment-form" novalidate>
+                    <input type="text" id="cardholderName" name="cardholderName" placeholder="Card holder name" autocomplete="cc-name">
+                    <input type="text" id="cardNumber" name="cardNumber" placeholder="Card Number" autocomplete="cc-number" inputmode="numeric" maxlength="19">
+                    <input type="text" id="expiryDate" name="expiryDate" placeholder="Expiry Date" autocomplete="cc-exp" inputmode="numeric" maxlength="5">
+                    <input type="text" id="cvd" name="cvd" placeholder="CVD" autocomplete="cc-csc" inputmode="numeric" maxlength="4">
+                    <button type="submit" class="pay-now-btn">Pay Now</button>
+                </form>
+            </section>
+        </div>
+    </main>
+
+    <footer id="siteFooter"></footer>
+
+    <script src="../js/checkout.js"></script>
+</body>
+</html>
