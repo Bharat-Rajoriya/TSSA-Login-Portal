@@ -2,6 +2,21 @@ $(document).ready(function(){
 
     const ACTIVE_PORTAL_SESSION_KEY = "activePortalSessionId";
     const portalId = getUrlParameter('id');
+    const isMergedPortal = $("#portalFormSelectionStep").length > 0;
+
+    if(isMergedPortal){
+        const activePortalId = portalId || sessionStorage.getItem(ACTIVE_PORTAL_SESSION_KEY);
+
+        if(activePortalId && sessionStorage.getItem(activePortalId)){
+            const customerData = JSON.parse(sessionStorage.getItem(activePortalId));
+
+            if(!customerData.applicationFormNumber){
+                showMergedFormSelectionStep(activePortalId);
+            }
+        }
+
+        return;
+    }
 
     if(!portalId){
         window.location.href = "../../index.html";
@@ -22,6 +37,37 @@ $(document).ready(function(){
     initializeDynamicFormPage(customerData, portalId);
 
 });
+
+function showMergedFormSelectionStep(portalId){
+    const ACTIVE_PORTAL_SESSION_KEY = "activePortalSessionId";
+    const portalSession = sessionStorage.getItem(portalId);
+
+    if(!portalSession){
+        return;
+    }
+
+    const customerData = JSON.parse(portalSession);
+
+    sessionStorage.setItem(ACTIVE_PORTAL_SESSION_KEY, portalId);
+    updateMergedPortalUrl(portalId);
+    showPortalStep("#portalFormSelectionStep");
+    initializeDynamicFormPage(customerData, portalId);
+}
+
+function showPortalStep(stepSelector){
+    $(".portal-step").hide();
+    $(stepSelector).show();
+
+    $("html, body").animate({
+        scrollTop: $(".container").offset().top - 20
+    }, 300);
+}
+
+function updateMergedPortalUrl(portalId){
+    const url = new URL(window.location.href);
+    url.searchParams.set("id", portalId);
+    window.history.replaceState(null, "", url.toString());
+}
 
 function getUrlParameter(name){
     name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
@@ -49,7 +95,14 @@ function initializeDynamicFormPage(customerData, portalId){
 
     loadApplicationForms(programArea, portalId);
 
-    $(".back-btn").on("click", function(){
+    const $backButton = $("#formSelectionBackBtn").length ? $("#formSelectionBackBtn") : $(".form-selection-section .back-btn");
+
+    $backButton.off("click").on("click", function(){
+        if($("#portalHomeStep").length){
+            showPortalStep("#portalHomeStep");
+            return;
+        }
+
         window.location.href = "../../index.html?id=" + portalId;
     });
 }
@@ -282,6 +335,11 @@ function loadApplicationForms(programArea, portalId){
         sessionStorage.setItem(portalId, JSON.stringify(sessionData));
 
         console.log("Step 2 completed:", sessionData);
+
+        if($("#portalServiceDetailsStep").length && typeof showMergedServiceDetailsStep === "function"){
+            showMergedServiceDetailsStep(portalId);
+            return;
+        }
 
         window.location.href = "service-details.html?id=" + portalId;
     });

@@ -29,7 +29,7 @@ $(document).ready(function () {
     const $newCustomerForm = $('#newCustomerForm');
     const $oldCustomerForm = $('#oldCustomerForm');
     const $programAreaBox = $('#programAreaSection');
-    const $continueBtn = $('.continue-btn');
+    const $continueBtn = $('#customerInfoForm .continue-btn');
 
 //    radio btn  for existing and new user 
     function updateCustomerForm() {
@@ -160,7 +160,7 @@ $(document).ready(function () {
             sessionStorage.setItem(ACTIVE_PORTAL_SESSION_KEY, portalSessionId);
             updateHomepageUrl(portalSessionId);
 
-            window.location.href = "Assets/html/form-selection.html?id=" + portalSessionId;
+            goToFormSelectionStep(portalSessionId);
         }
 
 
@@ -217,11 +217,20 @@ $(document).ready(function () {
                 sessionStorage.setItem(ACTIVE_PORTAL_SESSION_KEY, portalSessionId);
                 updateHomepageUrl(portalSessionId);
 
-                window.location.href = "Assets/html/form-selection.html?id=" + portalSessionId;
+                goToFormSelectionStep(portalSessionId);
             });
         }
 
     });
+
+    function goToFormSelectionStep(portalSessionId) {
+        if ($("#portalFormSelectionStep").length && typeof showMergedFormSelectionStep === "function") {
+            showMergedFormSelectionStep(portalSessionId);
+            return;
+        }
+
+        window.location.href = "Assets/html/form-selection.html?id=" + portalSessionId;
+    }
 
     function restoreActivePortalSession() {
         const portalSessionId = sessionStorage.getItem(ACTIVE_PORTAL_SESSION_KEY);

@@ -9,6 +9,21 @@ $(document).ready(function(){
 
     const ACTIVE_PORTAL_SESSION_KEY = "activePortalSessionId";
     const portalId = getUrlParameter("id");
+    const isMergedPortal = $("#portalServiceDetailsStep").length > 0;
+
+    if(isMergedPortal){
+        const activePortalId = portalId || sessionStorage.getItem(ACTIVE_PORTAL_SESSION_KEY);
+
+        if(activePortalId && sessionStorage.getItem(activePortalId)){
+            const customerData = JSON.parse(sessionStorage.getItem(activePortalId));
+
+            if(customerData.applicationFormNumber){
+                showMergedServiceDetailsStep(activePortalId);
+            }
+        }
+
+        return;
+    }
 
     if(!portalId){
         window.location.href = "../../index.html";
@@ -33,6 +48,29 @@ $(document).ready(function(){
 
     initializeServiceDetailsPage(customerData, portalId);
 });
+
+function showMergedServiceDetailsStep(portalId){
+    const ACTIVE_PORTAL_SESSION_KEY = "activePortalSessionId";
+    const portalSession = sessionStorage.getItem(portalId);
+
+    if(!portalSession){
+        return;
+    }
+
+    const customerData = JSON.parse(portalSession);
+
+    if(!customerData.applicationFormNumber){
+        if(typeof showMergedFormSelectionStep === "function"){
+            showMergedFormSelectionStep(portalId);
+        }
+        return;
+    }
+
+    sessionStorage.setItem(ACTIVE_PORTAL_SESSION_KEY, portalId);
+    updateMergedPortalUrl(portalId);
+    showPortalStep("#portalServiceDetailsStep");
+    initializeServiceDetailsPage(customerData, portalId);
+}
 
 function getUrlParameter(name){
     name = name.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");
@@ -59,53 +97,60 @@ function initializeServiceDetailsPage(customerData, portalId){
     updateRushServiceField(usesRushServiceField);
     updateTotalFees($("#authorizationFee").val(), usesHstFees, usesAdditionalAuthorizationFee);
 
-    $(".back-btn").on("click", function(){
+    const $backButton = $("#serviceDetailsBackBtn").length ? $("#serviceDetailsBackBtn") : $("#serviceDetailsForm .back-btn");
+
+    $backButton.off("click").on("click", function(){
+        if($("#portalFormSelectionStep").length && typeof showMergedFormSelectionStep === "function"){
+            showMergedFormSelectionStep(portalId);
+            return;
+        }
+
         window.location.href = "form-selection.html?id=" + portalId;
     });
 
-    $("input, select").on("input change", function(){
+    $("input, select").off("input.serviceDetails change.serviceDetails").on("input.serviceDetails change.serviceDetails", function(){
         $(this).removeClass("input-error");
     });
 
-    $("#phoneNumber").on("input", function(){
+    $("#phoneNumber").off("input.serviceDetailsPhone").on("input.serviceDetailsPhone", function(){
         $(this).val(formatPhoneNumber($(this).val()));
     });
 
-    $("#applicationFormUpload").on("change", function(){
+    $("#applicationFormUpload").off("change.serviceDetailsUpload").on("change.serviceDetailsUpload", function(){
         handleApplicationFormUpload(this);
     });
 
-    $("#supportingDocuments").on("change", function(){
+    $("#supportingDocuments").off("change.serviceDetailsUpload").on("change.serviceDetailsUpload", function(){
         handleSupportingDocumentsUpload(this);
     });
 
-    $(".upload-notice-close").on("click", function(){
+    $(".upload-notice-close").off("click.serviceDetailsNotice").on("click.serviceDetailsNotice", function(){
         $(this).closest(".upload-notice").slideUp();
     });
 
-    $("#authorizationFee").on("input", function(){
+    $("#authorizationFee").off("input.serviceDetailsFee").on("input.serviceDetailsFee", function(){
         updateTotalFees($(this).val(), usesHstFees, usesAdditionalAuthorizationFee);
     });
 
-    $("#authorizationFee").on("blur", function(){
+    $("#authorizationFee").off("blur.serviceDetailsFee").on("blur.serviceDetailsFee", function(){
         $(this).val(formatCurrency($(this).val()));
         updateTotalFees($(this).val(), usesHstFees, usesAdditionalAuthorizationFee);
     });
 
-    $("#additionalAuthorizationFee").on("input", function(){
+    $("#additionalAuthorizationFee").off("input.serviceDetailsFee").on("input.serviceDetailsFee", function(){
         updateTotalFees($("#authorizationFee").val(), usesHstFees, usesAdditionalAuthorizationFee);
     });
 
-    $("#additionalAuthorizationFee").on("blur", function(){
+    $("#additionalAuthorizationFee").off("blur.serviceDetailsFee").on("blur.serviceDetailsFee", function(){
         $(this).val(formatCurrency($(this).val()));
         updateTotalFees($("#authorizationFee").val(), usesHstFees, usesAdditionalAuthorizationFee);
     });
 
-    $("#expeditedService").on("change", function(){
+    $("#expeditedService").off("change.serviceDetailsRush").on("change.serviceDetailsRush", function(){
         updateRushServiceField(usesRushServiceField);
     });
 
-    $("#serviceDetailsForm").on("submit", function(e){
+    $("#serviceDetailsForm").off("submit.serviceDetails").on("submit.serviceDetails", function(e){
         e.preventDefault();
         saveServiceDetails(portalId, usesHstFees, usesAdditionalAuthorizationFee, requiresExpeditedService, usesRushServiceField);
     });
@@ -142,6 +187,9 @@ function isOperatingEngineersProgram(customerData){
 }
 
 function configureFeesSection(usesHstFees, usesAdditionalAuthorizationFee, requiresExpeditedService){
+    $(".service-fee-grid").removeClass("service-fee-grid-hst");
+    $("label[for='authorizationFee']").html('Authorization Fee (Licence/Registration/Certificate/Permit) - Box "2" from application form <span>*</span>');
+
     if(!usesHstFees){
         $(".service-hst-field").hide();
         $("#hstFee").val("$0.00");
