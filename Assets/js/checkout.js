@@ -3,6 +3,12 @@ $(document).ready(function(){
     const ACTIVE_PORTAL_SESSION_KEY = "activePortalSessionId";
     const portalId = getUrlParameter("id");
 
+    if(isPageReload()){
+        clearPortalSession(portalId, ACTIVE_PORTAL_SESSION_KEY);
+        window.location.href = "../../index.html";
+        return;
+    }
+
     if(!portalId){
         window.location.href = "../../index.html";
         return;
@@ -35,6 +41,30 @@ function getUrlParameter(name){
     var regex = new RegExp("[\\?&]" + name + "=([^&#]*)");
     var results = regex.exec(location.search);
     return results === null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "));
+}
+
+function clearPortalSession(portalId, activePortalSessionKey){
+    const activePortalId = sessionStorage.getItem(activePortalSessionKey);
+
+    if(portalId){
+        sessionStorage.removeItem(portalId);
+    }
+
+    if(activePortalId){
+        sessionStorage.removeItem(activePortalId);
+    }
+
+    sessionStorage.removeItem(activePortalSessionKey);
+}
+
+function isPageReload(){
+    const navigationEntry = performance.getEntriesByType("navigation")[0];
+
+    if(navigationEntry){
+        return navigationEntry.type === "reload";
+    }
+
+    return performance.navigation && performance.navigation.type === performance.navigation.TYPE_RELOAD;
 }
 
 

@@ -31,6 +31,12 @@ $(document).ready(function () {
     const $programAreaBox = $('#programAreaSection');
     const $continueBtn = $('#customerInfoForm .continue-btn');
 
+    if (isPageReload()) {
+        clearPortalSession(portalIdFromUrl);
+        resetHomepageUrl();
+        resetHomepageState();
+    }
+
 //    radio btn  for existing and new user 
     function updateCustomerForm() {
 
@@ -233,6 +239,10 @@ $(document).ready(function () {
     }
 
     function restoreActivePortalSession() {
+        if (isPageReload()) {
+            return;
+        }
+
         const portalSessionId = sessionStorage.getItem(ACTIVE_PORTAL_SESSION_KEY);
 
         if (!portalSessionId) {
@@ -285,6 +295,48 @@ $(document).ready(function () {
         const url = new URL(window.location.href);
         url.searchParams.set("id", portalSessionId);
         window.history.replaceState(null, "", url.toString());
+    }
+
+    function resetHomepageUrl() {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("id");
+        url.searchParams.delete("Id");
+        window.history.replaceState(null, "", url.toString());
+    }
+
+    function resetHomepageState() {
+        if ($("#customerInfoForm").length) {
+            $("#customerInfoForm")[0].reset();
+        }
+
+        $("#formErrorBox").hide();
+        $("#formErrorList").empty();
+        $(".portal-step").hide();
+        $("#portalHomeStep").show();
+    }
+
+    function clearPortalSession(portalSessionId) {
+        const activePortalSessionId = sessionStorage.getItem(ACTIVE_PORTAL_SESSION_KEY);
+
+        if (portalSessionId) {
+            sessionStorage.removeItem(portalSessionId);
+        }
+
+        if (activePortalSessionId) {
+            sessionStorage.removeItem(activePortalSessionId);
+        }
+
+        sessionStorage.removeItem(ACTIVE_PORTAL_SESSION_KEY);
+    }
+
+    function isPageReload() {
+        const navigationEntry = performance.getEntriesByType("navigation")[0];
+
+        if (navigationEntry) {
+            return navigationEntry.type === "reload";
+        }
+
+        return performance.navigation && performance.navigation.type === performance.navigation.TYPE_RELOAD;
     }
 
 });

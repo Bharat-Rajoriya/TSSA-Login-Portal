@@ -11,6 +11,16 @@ $(document).ready(function(){
     const portalId = getUrlParameter("id");
     const isMergedPortal = $("#portalServiceDetailsStep").length > 0;
 
+    if(isPageReload()){
+        clearPortalSession(portalId, ACTIVE_PORTAL_SESSION_KEY);
+        if(isMergedPortal){
+            return;
+        }
+
+        window.location.href = "../../index.html";
+        return;
+    }
+
     if(isMergedPortal){
         const activePortalId = portalId || sessionStorage.getItem(ACTIVE_PORTAL_SESSION_KEY);
 
@@ -77,6 +87,30 @@ function getUrlParameter(name){
     var regex = new RegExp("[\\?&]" + name + "=([^&#]*)");
     var results = regex.exec(location.search);
     return results === null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "));
+}
+
+function clearPortalSession(portalId, activePortalSessionKey){
+    const activePortalId = sessionStorage.getItem(activePortalSessionKey);
+
+    if(portalId){
+        sessionStorage.removeItem(portalId);
+    }
+
+    if(activePortalId){
+        sessionStorage.removeItem(activePortalId);
+    }
+
+    sessionStorage.removeItem(activePortalSessionKey);
+}
+
+function isPageReload(){
+    const navigationEntry = performance.getEntriesByType("navigation")[0];
+
+    if(navigationEntry){
+        return navigationEntry.type === "reload";
+    }
+
+    return performance.navigation && performance.navigation.type === performance.navigation.TYPE_RELOAD;
 }
 
 function getCheckoutPageUrl(portalId){
