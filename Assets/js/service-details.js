@@ -79,6 +79,11 @@ function getUrlParameter(name){
     return results === null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "));
 }
 
+function getCheckoutPageUrl(portalId){
+    const checkoutPath = $("#portalServiceDetailsStep").length > 0 ? "Assets/html/checkout.html" : "checkout.html";
+    return checkoutPath + "?id=" + encodeURIComponent(portalId);
+}
+
 function initializeServiceDetailsPage(customerData, portalId){
     const formDisplayName = getSelectedFormDisplayName(customerData);
     const usesHstFees = usesHstFeeLayout(customerData);
@@ -585,8 +590,7 @@ function saveServiceDetails(portalId, usesHstFees, usesAdditionalAuthorizationFe
 
     console.log("Step 3 completed:", sessionData);
 
-    // commenting below line for now!!
-    // window.location.href = "checkout.html?id=" + portalId;
+    window.location.href = getCheckoutPageUrl(portalId);
 }
 
 function validateServiceDetails(serviceDetails, applicationFormFile, supportingFiles, errors, usesHstFees, usesAdditionalAuthorizationFee, requiresExpeditedService){
