@@ -155,7 +155,7 @@ async function processPayment(portalId, totalAmount){
 
 
     // PAYMENT SUCCESS MOCK
-    // Replace later with Moneris callback success
+    // Replace later with Moneris
 
     const sessionData = JSON.parse(sessionStorage.getItem(portalId));
 
