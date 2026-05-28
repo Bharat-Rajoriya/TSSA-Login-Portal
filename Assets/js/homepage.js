@@ -1,4 +1,5 @@
 const MOCK_CUSTOMERS_STORAGE_KEY = "mockCustomers";
+const NEW_CUSTOMER_DETAILS_ARRAY_NAME = "newCustomerDetails";
 const defaultMockCustomers = [
     {
         customerNumber: "12345",
@@ -150,7 +151,7 @@ $(document).ready(function () {
                 postalCode: postalCode
             });
 
-            const customerData = {
+            const newCustomerDetail = {
                 id: portalSessionId,
                 customerType: customerType,
                 companyName: companyName,
@@ -160,6 +161,21 @@ $(document).ready(function () {
                 postalCode: postalCode,
                 customerNumber: newMockCustomer.customerNumber,
                 programArea: programArea
+            };
+
+            saveNewCustomerDetails(newCustomerDetail);
+
+            const customerData = {
+                id: portalSessionId,
+                customerType: customerType,
+                companyName: companyName,
+                streetAddress: streetAddress,
+                city: city,
+                province: province,
+                postalCode: postalCode,
+                customerNumber: newMockCustomer.customerNumber,
+                programArea: programArea,
+                newCustomerDetails: [newCustomerDetail]
             };
 
             sessionStorage.setItem(portalSessionId, JSON.stringify(customerData));
@@ -216,7 +232,8 @@ $(document).ready(function () {
                     province: verificationResult.province,
                     postalCode: existingPostalCode,
                     customerNumber: customerNumber,
-                    programArea: programArea
+                    programArea: programArea,
+                    newCustomerDetails: []
                 };
 
                 sessionStorage.setItem(portalSessionId, JSON.stringify(customerData));
@@ -479,6 +496,38 @@ function saveMockCustomers() {
     localStorage.setItem(MOCK_CUSTOMERS_STORAGE_KEY, JSON.stringify(mockCustomers));
 }
 
+function loadNewCustomerDetails() {
+    const savedDetails = sessionStorage.getItem(NEW_CUSTOMER_DETAILS_ARRAY_NAME);
+
+    if (!savedDetails) {
+        return [];
+    }
+
+    try {
+        const parsedDetails = JSON.parse(savedDetails);
+        return Array.isArray(parsedDetails) ? parsedDetails : [];
+    } catch (error) {
+        return [];
+    }
+}
+
+function saveNewCustomerDetails(customerData) {
+    const newCustomerDetails = loadNewCustomerDetails();
+    const existingCustomerIndex = newCustomerDetails.findIndex(function (customer) {
+        return customer.id === customerData.id;
+    });
+
+    if (existingCustomerIndex >= 0) {
+        newCustomerDetails[existingCustomerIndex] = customerData;
+    } else {
+        newCustomerDetails.push(customerData);
+    }
+
+    sessionStorage.setItem(NEW_CUSTOMER_DETAILS_ARRAY_NAME, JSON.stringify(newCustomerDetails));
+
+    return newCustomerDetails;
+}
+
 function saveNewCustomerToMockCustomers(customerData) {
     const existingCustomerIndex = mockCustomers.findIndex(function (customer) {
         return customer.id === customerData.id;
@@ -545,7 +594,6 @@ function verifyExistingCustomer(customerNumber, postalCode, callback) {
 }
 
 console.log(defaultMockCustomers);
-
 
     // random id generate 
 function generateUUID() {
