@@ -113,7 +113,7 @@ button{
     font-weight: 800;
 }
 
-.headingContentPart h2{
+.headingContentPart h4{
     font-size: 18px;
 }
 
@@ -292,9 +292,9 @@ li{
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 22px;
-    height: 22px;
-    min-width: 22px;
+    width: 26px;
+    height: 26px;
+    min-width: 26px;
     padding: 0;
     border: none;
     border-radius: 50%;
@@ -815,7 +815,7 @@ li{
 
 .form-error-box a{
     color: inherit;
-    font-weight: 600;
+    text-decoration: underline;
 }
 
 .form-error-box a:focus,
@@ -1031,10 +1031,10 @@ input::-webkit-file-upload-button:hover {
     }
 
     .info-trigger{
-        width: 22px;
-        min-width: 22px;
-        height: 22px;
-        flex: 0 0 22px;
+        width: 26px;
+        min-width: 26px;
+        height: 26px;
+        flex: 0 0 26px;
         border-radius: 50%;
     }
 

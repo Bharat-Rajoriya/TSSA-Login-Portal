@@ -1,5 +1,4 @@
 const MOCK_CUSTOMERS_STORAGE_KEY = "mockCustomers";
-const NEW_CUSTOMER_DETAILS_ARRAY_NAME = "newCustomerDetails";
 const defaultMockCustomers = [
     {
         customerNumber: "12345",
@@ -32,12 +31,6 @@ $(document).ready(function () {
     const $programAreaBox = $('#programAreaSection');
     const $continueBtn = $('#customerInfoForm .continue-btn');
 
-    if (isPageReload()) {
-        clearPortalSession(portalIdFromUrl);
-        resetHomepageUrl();
-        resetHomepageState();
-    }
-
 //    radio btn  for existing and new user 
     function updateCustomerForm() {
 
@@ -69,6 +62,7 @@ $(document).ready(function () {
     }
     restoreActivePortalSession();
     updateCustomerForm();
+    restorePortalStepFromSession();
 
 
 
@@ -151,7 +145,7 @@ $(document).ready(function () {
                 postalCode: postalCode
             });
 
-            const newCustomerDetail = {
+            const customerData = {
                 id: portalSessionId,
                 customerType: customerType,
                 companyName: companyName,
@@ -163,26 +157,9 @@ $(document).ready(function () {
                 programArea: programArea
             };
 
-            saveNewCustomerDetails(newCustomerDetail);
-
-            const customerData = {
-                id: portalSessionId,
-                customerType: customerType,
-                companyName: companyName,
-                streetAddress: streetAddress,
-                city: city,
-                province: province,
-                postalCode: postalCode,
-                customerNumber: newMockCustomer.customerNumber,
-                programArea: programArea,
-                newCustomerDetails: [newCustomerDetail]
-            };
-
             sessionStorage.setItem(portalSessionId, JSON.stringify(customerData));
             sessionStorage.setItem(ACTIVE_PORTAL_SESSION_KEY, portalSessionId);
-            updateHomepageUrl(portalSessionId);
-
-            goToFormSelectionStep(portalSessionId);
+            showFormSelectionStep(portalSessionId);
         }
 
 
@@ -232,34 +209,53 @@ $(document).ready(function () {
                     province: verificationResult.province,
                     postalCode: existingPostalCode,
                     customerNumber: customerNumber,
-                    programArea: programArea,
-                    newCustomerDetails: []
+                    programArea: programArea
                 };
 
                 sessionStorage.setItem(portalSessionId, JSON.stringify(customerData));
                 sessionStorage.setItem(ACTIVE_PORTAL_SESSION_KEY, portalSessionId);
-                updateHomepageUrl(portalSessionId);
-
-                goToFormSelectionStep(portalSessionId);
+                showFormSelectionStep(portalSessionId);
             });
         }
 
     });
 
-    function goToFormSelectionStep(portalSessionId) {
-        if ($("#portalFormSelectionStep").length && typeof showMergedFormSelectionStep === "function") {
-            showMergedFormSelectionStep(portalSessionId);
+    window.showPortalHomeStep = function () {
+        showPortalStep("home");
+        updateCustomerForm();
+    };
+
+    function restorePortalStepFromSession() {
+        const portalSessionId = sessionStorage.getItem(ACTIVE_PORTAL_SESSION_KEY);
+
+        if (!portalSessionId) {
+            showPortalStep("home");
             return;
         }
 
-        window.location.href = "Assets/html/form-selection.html?id=" + portalSessionId;
+        const portalSession = sessionStorage.getItem(portalSessionId);
+
+        if (!portalSession) {
+            showPortalStep("home");
+            return;
+        }
+
+        const customerData = JSON.parse(portalSession);
+
+        if (customerData.applicationFormNumber) {
+            showServiceDetailsStep(portalSessionId);
+            return;
+        }
+
+        if (customerData.programArea) {
+            showFormSelectionStep(portalSessionId);
+            return;
+        }
+
+        showPortalStep("home");
     }
 
     function restoreActivePortalSession() {
-        if (isPageReload()) {
-            return;
-        }
-
         const portalSessionId = sessionStorage.getItem(ACTIVE_PORTAL_SESSION_KEY);
 
         if (!portalSessionId) {
@@ -309,54 +305,50 @@ $(document).ready(function () {
     }
 
     function updateHomepageUrl(portalSessionId) {
-        const url = new URL(window.location.href);
-        url.searchParams.set("id", portalSessionId);
-        window.history.replaceState(null, "", url.toString());
-    }
-
-    function resetHomepageUrl() {
-        const url = new URL(window.location.href);
-        url.searchParams.delete("id");
-        url.searchParams.delete("Id");
-        window.history.replaceState(null, "", url.toString());
-    }
-
-    function resetHomepageState() {
-        if ($("#customerInfoForm").length) {
-            $("#customerInfoForm")[0].reset();
-        }
-
-        $("#formErrorBox").hide();
-        $("#formErrorList").empty();
-        $(".portal-step").hide();
-        $("#portalHomeStep").show();
-    }
-
-    function clearPortalSession(portalSessionId) {
-        const activePortalSessionId = sessionStorage.getItem(ACTIVE_PORTAL_SESSION_KEY);
-
-        if (portalSessionId) {
-            sessionStorage.removeItem(portalSessionId);
-        }
-
-        if (activePortalSessionId) {
-            sessionStorage.removeItem(activePortalSessionId);
-        }
-
-        sessionStorage.removeItem(ACTIVE_PORTAL_SESSION_KEY);
-    }
-
-    function isPageReload() {
-        const navigationEntry = performance.getEntriesByType("navigation")[0];
-
-        if (navigationEntry) {
-            return navigationEntry.type === "reload";
-        }
-
-        return performance.navigation && performance.navigation.type === performance.navigation.TYPE_RELOAD;
+        return portalSessionId;
     }
 
 });
+
+function showPortalStep(stepName) {
+    $(".portal-step").hide();
+
+    if (stepName === "form-selection") {
+        $("#formSelectionStep").show();
+    } else if (stepName === "service-details") {
+        $("#serviceDetailsStep").show();
+    } else {
+        $("#homepageStep").show();
+    }
+
+    $("html, body").animate({
+        scrollTop: 0
+    }, 250);
+}
+
+function showFormSelectionStep(portalSessionId) {
+    const portalSession = sessionStorage.getItem(portalSessionId);
+
+    if (!portalSession) {
+        showPortalStep("home");
+        return;
+    }
+
+    showPortalStep("form-selection");
+    initializeDynamicFormPage(JSON.parse(portalSession), portalSessionId);
+}
+
+function showServiceDetailsStep(portalSessionId) {
+    const portalSession = sessionStorage.getItem(portalSessionId);
+
+    if (!portalSession) {
+        showPortalStep("home");
+        return;
+    }
+
+    showPortalStep("service-details");
+    initializeServiceDetailsPage(JSON.parse(portalSession), portalSessionId);
+}
 
 // Validation for Postal Code...
 function formatCanadianPostalCode(value) {
@@ -496,38 +488,6 @@ function saveMockCustomers() {
     localStorage.setItem(MOCK_CUSTOMERS_STORAGE_KEY, JSON.stringify(mockCustomers));
 }
 
-function loadNewCustomerDetails() {
-    const savedDetails = sessionStorage.getItem(NEW_CUSTOMER_DETAILS_ARRAY_NAME);
-
-    if (!savedDetails) {
-        return [];
-    }
-
-    try {
-        const parsedDetails = JSON.parse(savedDetails);
-        return Array.isArray(parsedDetails) ? parsedDetails : [];
-    } catch (error) {
-        return [];
-    }
-}
-
-function saveNewCustomerDetails(customerData) {
-    const newCustomerDetails = loadNewCustomerDetails();
-    const existingCustomerIndex = newCustomerDetails.findIndex(function (customer) {
-        return customer.id === customerData.id;
-    });
-
-    if (existingCustomerIndex >= 0) {
-        newCustomerDetails[existingCustomerIndex] = customerData;
-    } else {
-        newCustomerDetails.push(customerData);
-    }
-
-    sessionStorage.setItem(NEW_CUSTOMER_DETAILS_ARRAY_NAME, JSON.stringify(newCustomerDetails));
-
-    return newCustomerDetails;
-}
-
 function saveNewCustomerToMockCustomers(customerData) {
     const existingCustomerIndex = mockCustomers.findIndex(function (customer) {
         return customer.id === customerData.id;
@@ -594,6 +554,7 @@ function verifyExistingCustomer(customerNumber, postalCode, callback) {
 }
 
 console.log(defaultMockCustomers);
+
 
     // random id generate 
 function generateUUID() {

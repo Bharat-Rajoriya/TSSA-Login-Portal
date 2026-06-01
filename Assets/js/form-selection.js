@@ -1,32 +1,11 @@
 $(document).ready(function(){
 
+    if($("#formSelectionStep").length){
+        return;
+    }
+
     const ACTIVE_PORTAL_SESSION_KEY = "activePortalSessionId";
     const portalId = getUrlParameter('id');
-    const isMergedPortal = $("#portalFormSelectionStep").length > 0;
-
-    if(isPageReload()){
-        clearPortalSession(portalId, ACTIVE_PORTAL_SESSION_KEY);
-        if(isMergedPortal){
-            return;
-        }
-
-        window.location.href = "../../index.html";
-        return;
-    }
-
-    if(isMergedPortal){
-        const activePortalId = portalId || sessionStorage.getItem(ACTIVE_PORTAL_SESSION_KEY);
-
-        if(activePortalId && sessionStorage.getItem(activePortalId)){
-            const customerData = JSON.parse(sessionStorage.getItem(activePortalId));
-
-            if(!customerData.applicationFormNumber){
-                showMergedFormSelectionStep(activePortalId);
-            }
-        }
-
-        return;
-    }
 
     if(!portalId){
         window.location.href = "../../index.html";
@@ -48,66 +27,11 @@ $(document).ready(function(){
 
 });
 
-function showMergedFormSelectionStep(portalId){
-    const ACTIVE_PORTAL_SESSION_KEY = "activePortalSessionId";
-    const portalSession = sessionStorage.getItem(portalId);
-
-    if(!portalSession){
-        return;
-    }
-
-    const customerData = JSON.parse(portalSession);
-
-    sessionStorage.setItem(ACTIVE_PORTAL_SESSION_KEY, portalId);
-    updateMergedPortalUrl(portalId);
-    showPortalStep("#portalFormSelectionStep");
-    initializeDynamicFormPage(customerData, portalId);
-}
-
-function showPortalStep(stepSelector){
-    $(".portal-step").hide();
-    $(stepSelector).show();
-
-    $("html, body").animate({
-        scrollTop: $(".container").offset().top - 20
-    }, 300);
-}
-
-function updateMergedPortalUrl(portalId){
-    const url = new URL(window.location.href);
-    url.searchParams.set("id", portalId);
-    window.history.replaceState(null, "", url.toString());
-}
-
 function getUrlParameter(name){
     name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
     var regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
     var results = regex.exec(location.search);
     return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
-}
-
-function clearPortalSession(portalId, activePortalSessionKey){
-    const activePortalId = sessionStorage.getItem(activePortalSessionKey);
-
-    if(portalId){
-        sessionStorage.removeItem(portalId);
-    }
-
-    if(activePortalId){
-        sessionStorage.removeItem(activePortalId);
-    }
-
-    sessionStorage.removeItem(activePortalSessionKey);
-}
-
-function isPageReload(){
-    const navigationEntry = performance.getEntriesByType("navigation")[0];
-
-    if(navigationEntry){
-        return navigationEntry.type === "reload";
-    }
-
-    return performance.navigation && performance.navigation.type === performance.navigation.TYPE_RELOAD;
 }
 
 
@@ -129,11 +53,11 @@ function initializeDynamicFormPage(customerData, portalId){
 
     loadApplicationForms(programArea, portalId);
 
-    const $backButton = $("#formSelectionBackBtn").length ? $("#formSelectionBackBtn") : $(".form-selection-section .back-btn");
+    const $backButtons = $("#formSelectionStep").length ? $("#formSelectionStep .back-btn") : $(".back-btn");
 
-    $backButton.off("click").on("click", function(){
-        if($("#portalHomeStep").length){
-            showPortalStep("#portalHomeStep");
+    $backButtons.off("click.formSelection").on("click.formSelection", function(){
+        if(typeof window.showPortalHomeStep === "function"){
+            window.showPortalHomeStep();
             return;
         }
 
@@ -350,7 +274,7 @@ function loadApplicationForms(programArea, portalId){
     $("#formDescriptionTable").html(tableHtml);
 
 
-    $(".continue-form-btn").off("click").on("click", function(){
+    $(".continue-form-btn").off("click.formSelection").on("click.formSelection", function(){
 
         clearFormSelectionErrors();
 
@@ -370,8 +294,8 @@ function loadApplicationForms(programArea, portalId){
 
         console.log("Step 2 completed:", sessionData);
 
-        if($("#portalServiceDetailsStep").length && typeof showMergedServiceDetailsStep === "function"){
-            showMergedServiceDetailsStep(portalId);
+        if(typeof window.showServiceDetailsStep === "function"){
+            window.showServiceDetailsStep(portalId);
             return;
         }
 

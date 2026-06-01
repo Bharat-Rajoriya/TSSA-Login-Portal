@@ -42,7 +42,6 @@ footer{
     font-size: 14px;
     gap: 20px;
     flex-wrap: wrap;
-    padding-left: 0;
 }
 
 .footerNav li{
@@ -95,7 +94,7 @@ footer{
     .footerTopRight,
     .footerTopRight button,
     .footer-action-link{
-        width: fit-content;
+        width: 100%;
         border-radius: 12px;
     }
 

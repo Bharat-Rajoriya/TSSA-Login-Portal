@@ -31,13 +31,14 @@ nav{
 @media screen and (max-width:768px){
     nav{
         align-items: flex-start;
+        flex-direction: column;
         gap: 14px;
         align-items: center;
     }
 
     nav button,
     .nav-action-link{
-        width: fit-content;
+        width: 100%;
         border-radius: 12px;
     }
 }

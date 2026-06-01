@@ -7,33 +7,12 @@ let supportingDocumentFiles = [];
 
 $(document).ready(function(){
 
+    if($("#serviceDetailsStep").length){
+        return;
+    }
+
     const ACTIVE_PORTAL_SESSION_KEY = "activePortalSessionId";
     const portalId = getUrlParameter("id");
-    const isMergedPortal = $("#portalServiceDetailsStep").length > 0;
-
-    if(isPageReload()){
-        clearPortalSession(portalId, ACTIVE_PORTAL_SESSION_KEY);
-        if(isMergedPortal){
-            return;
-        }
-
-        window.location.href = "../../index.html";
-        return;
-    }
-
-    if(isMergedPortal){
-        const activePortalId = portalId || sessionStorage.getItem(ACTIVE_PORTAL_SESSION_KEY);
-
-        if(activePortalId && sessionStorage.getItem(activePortalId)){
-            const customerData = JSON.parse(sessionStorage.getItem(activePortalId));
-
-            if(customerData.applicationFormNumber){
-                showMergedServiceDetailsStep(activePortalId);
-            }
-        }
-
-        return;
-    }
 
     if(!portalId){
         window.location.href = "../../index.html";
@@ -59,63 +38,11 @@ $(document).ready(function(){
     initializeServiceDetailsPage(customerData, portalId);
 });
 
-function showMergedServiceDetailsStep(portalId){
-    const ACTIVE_PORTAL_SESSION_KEY = "activePortalSessionId";
-    const portalSession = sessionStorage.getItem(portalId);
-
-    if(!portalSession){
-        return;
-    }
-
-    const customerData = JSON.parse(portalSession);
-
-    if(!customerData.applicationFormNumber){
-        if(typeof showMergedFormSelectionStep === "function"){
-            showMergedFormSelectionStep(portalId);
-        }
-        return;
-    }
-
-    sessionStorage.setItem(ACTIVE_PORTAL_SESSION_KEY, portalId);
-    updateMergedPortalUrl(portalId);
-    showPortalStep("#portalServiceDetailsStep");
-    initializeServiceDetailsPage(customerData, portalId);
-}
-
 function getUrlParameter(name){
     name = name.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");
     var regex = new RegExp("[\\?&]" + name + "=([^&#]*)");
     var results = regex.exec(location.search);
     return results === null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "));
-}
-
-function clearPortalSession(portalId, activePortalSessionKey){
-    const activePortalId = sessionStorage.getItem(activePortalSessionKey);
-
-    if(portalId){
-        sessionStorage.removeItem(portalId);
-    }
-
-    if(activePortalId){
-        sessionStorage.removeItem(activePortalId);
-    }
-
-    sessionStorage.removeItem(activePortalSessionKey);
-}
-
-function isPageReload(){
-    const navigationEntry = performance.getEntriesByType("navigation")[0];
-
-    if(navigationEntry){
-        return navigationEntry.type === "reload";
-    }
-
-    return performance.navigation && performance.navigation.type === performance.navigation.TYPE_RELOAD;
-}
-
-function getCheckoutPageUrl(portalId){
-    const checkoutPath = $("#portalServiceDetailsStep").length > 0 ? "Assets/html/checkout.html" : "checkout.html";
-    return checkoutPath + "?id=" + encodeURIComponent(portalId);
 }
 
 function initializeServiceDetailsPage(customerData, portalId){
@@ -136,56 +63,56 @@ function initializeServiceDetailsPage(customerData, portalId){
     updateRushServiceField(usesRushServiceField);
     updateTotalFees($("#authorizationFee").val(), usesHstFees, usesAdditionalAuthorizationFee);
 
-    const $backButton = $("#serviceDetailsBackBtn").length ? $("#serviceDetailsBackBtn") : $("#serviceDetailsForm .back-btn");
+    const $backButtons = $("#serviceDetailsStep").length ? $("#serviceDetailsStep .back-btn") : $(".back-btn");
 
-    $backButton.off("click").on("click", function(){
-        if($("#portalFormSelectionStep").length && typeof showMergedFormSelectionStep === "function"){
-            showMergedFormSelectionStep(portalId);
+    $backButtons.off("click.serviceDetails").on("click.serviceDetails", function(){
+        if(typeof window.showFormSelectionStep === "function"){
+            window.showFormSelectionStep(portalId);
             return;
         }
 
         window.location.href = "form-selection.html?id=" + portalId;
     });
 
-    $("input, select").off("input.serviceDetails change.serviceDetails").on("input.serviceDetails change.serviceDetails", function(){
+    $("#serviceDetailsForm input, #serviceDetailsForm select").off("input.serviceDetails change.serviceDetails").on("input.serviceDetails change.serviceDetails", function(){
         $(this).removeClass("input-error");
     });
 
-    $("#phoneNumber").off("input.serviceDetailsPhone").on("input.serviceDetailsPhone", function(){
+    $("#phoneNumber").off("input.serviceDetails").on("input.serviceDetails", function(){
         $(this).val(formatPhoneNumber($(this).val()));
     });
 
-    $("#applicationFormUpload").off("change.serviceDetailsUpload").on("change.serviceDetailsUpload", function(){
+    $("#applicationFormUpload").off("change.serviceDetails").on("change.serviceDetails", function(){
         handleApplicationFormUpload(this);
     });
 
-    $("#supportingDocuments").off("change.serviceDetailsUpload").on("change.serviceDetailsUpload", function(){
+    $("#supportingDocuments").off("change.serviceDetails").on("change.serviceDetails", function(){
         handleSupportingDocumentsUpload(this);
     });
 
-    $(".upload-notice-close").off("click.serviceDetailsNotice").on("click.serviceDetailsNotice", function(){
+    $(".upload-notice-close").off("click.serviceDetails").on("click.serviceDetails", function(){
         $(this).closest(".upload-notice").slideUp();
     });
 
-    $("#authorizationFee").off("input.serviceDetailsFee").on("input.serviceDetailsFee", function(){
+    $("#authorizationFee").off("input.serviceDetails").on("input.serviceDetails", function(){
         updateTotalFees($(this).val(), usesHstFees, usesAdditionalAuthorizationFee);
     });
 
-    $("#authorizationFee").off("blur.serviceDetailsFee").on("blur.serviceDetailsFee", function(){
+    $("#authorizationFee").off("blur.serviceDetails").on("blur.serviceDetails", function(){
         $(this).val(formatCurrency($(this).val()));
         updateTotalFees($(this).val(), usesHstFees, usesAdditionalAuthorizationFee);
     });
 
-    $("#additionalAuthorizationFee").off("input.serviceDetailsFee").on("input.serviceDetailsFee", function(){
+    $("#additionalAuthorizationFee").off("input.serviceDetails").on("input.serviceDetails", function(){
         updateTotalFees($("#authorizationFee").val(), usesHstFees, usesAdditionalAuthorizationFee);
     });
 
-    $("#additionalAuthorizationFee").off("blur.serviceDetailsFee").on("blur.serviceDetailsFee", function(){
+    $("#additionalAuthorizationFee").off("blur.serviceDetails").on("blur.serviceDetails", function(){
         $(this).val(formatCurrency($(this).val()));
         updateTotalFees($("#authorizationFee").val(), usesHstFees, usesAdditionalAuthorizationFee);
     });
 
-    $("#expeditedService").off("change.serviceDetailsRush").on("change.serviceDetailsRush", function(){
+    $("#expeditedService").off("change.serviceDetails").on("change.serviceDetails", function(){
         updateRushServiceField(usesRushServiceField);
     });
 
@@ -293,7 +220,7 @@ function handleApplicationFormUpload(input){
 
     if(selectedFiles[0].size > MAX_UPLOAD_FILE_SIZE){
         $(input).addClass("input-error");
-        showServiceDetailsErrors([{fieldId: "applicationFormUpload", message: "The Application Form maximum file upload size is 50MB."}]);
+        showServiceDetailsErrors([{fieldId: "applicationFormUpload", message: "Application Form Upload cannot exceed 50MB."}]);
         syncInputFiles(input, applicationFormFiles);
         return;
     }
@@ -624,7 +551,8 @@ function saveServiceDetails(portalId, usesHstFees, usesAdditionalAuthorizationFe
 
     console.log("Step 3 completed:", sessionData);
 
-    window.location.href = getCheckoutPageUrl(portalId);
+    // commenting below line for now!!
+    window.location.href = "checkout.html?id=" + portalId;
 }
 
 function validateServiceDetails(serviceDetails, applicationFormFile, supportingFiles, errors, usesHstFees, usesAdditionalAuthorizationFee, requiresExpeditedService){
