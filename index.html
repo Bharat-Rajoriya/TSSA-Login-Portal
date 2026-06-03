@@ -490,6 +490,40 @@
             
         </div>
 
+        <div id="existingCustomerReviewStep" class="portal-step container" style="display:none;">
+            <section class="existing-customer-review-section" aria-labelledby="existing-customer-review-heading">
+                <h2 id="existing-customer-review-heading" class="sr-only">Existing Customer Information Review</h2>
+
+                <p class="existing-customer-review-intro">
+                    Please review your existing customer information, and then click Continue. If any of the following details are incorrect, contact our <a href="https://www.tssa.org/contact-us" target="_blank" class="review-service-link">Customer Service Centre</a>.
+                </p>
+
+                <dl class="existing-customer-review-details">
+                    <div>
+                        <dt>Company Name or Individual Name:</dt>
+                        <dd id="reviewCustomerName"></dd>
+                    </div>
+                    <div>
+                        <dt>Street Address:</dt>
+                        <dd id="reviewStreetAddress"></dd>
+                    </div>
+                    <div>
+                        <dt>City:</dt>
+                        <dd id="reviewCity"></dd>
+                    </div>
+                    <div>
+                        <dt>Province or State:</dt>
+                        <dd id="reviewProvince"></dd>
+                    </div>
+                </dl>
+
+                <div class="form-actions dual-btns existing-customer-review-actions">
+                    <button type="button" class="back-btn existing-review-back-btn">Back</button>
+                    <button type="button" class="continue-form-btn existing-review-continue-btn">Continue</button>
+                </div>
+            </section>
+        </div>
+
         <div id="formSelectionStep" class="portal-step container" style="display:none;">
             <div id="formSelectErrorBox" class="form-error-box" style="display:none;">
                 <strong>Please review the following errors</strong>

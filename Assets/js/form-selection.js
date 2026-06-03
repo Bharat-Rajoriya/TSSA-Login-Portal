@@ -56,6 +56,17 @@ function initializeDynamicFormPage(customerData, portalId){
     const $backButtons = $("#formSelectionStep").length ? $("#formSelectionStep .back-btn") : $(".back-btn");
 
     $backButtons.off("click.formSelection").on("click.formSelection", function(){
+        const latestPortalSession = sessionStorage.getItem(portalId);
+        const latestCustomerData = latestPortalSession ? JSON.parse(latestPortalSession) : customerData;
+
+        if(
+            latestCustomerData.customerType === "Existing Customer" &&
+            typeof window.showExistingCustomerReviewStep === "function"
+        ){
+            window.showExistingCustomerReviewStep(portalId);
+            return;
+        }
+
         if(typeof window.showPortalHomeStep === "function"){
             window.showPortalHomeStep();
             return;

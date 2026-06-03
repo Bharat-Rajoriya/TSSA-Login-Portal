@@ -209,12 +209,14 @@ $(document).ready(function () {
                     province: verificationResult.province,
                     postalCode: existingPostalCode,
                     customerNumber: customerNumber,
-                    programArea: programArea
+                    programArea: programArea,
+                    existingCustomerInfoReviewed: false
                 };
 
                 sessionStorage.setItem(portalSessionId, JSON.stringify(customerData));
                 sessionStorage.setItem(ACTIVE_PORTAL_SESSION_KEY, portalSessionId);
-                showFormSelectionStep(portalSessionId);
+                $continueBtn.text("Continue").prop("disabled", false);
+                showExistingCustomerReviewStep(portalSessionId);
             });
         }
 
@@ -224,6 +226,8 @@ $(document).ready(function () {
         showPortalStep("home");
         updateCustomerForm();
     };
+
+
 
     function restorePortalStepFromSession() {
         const portalSessionId = sessionStorage.getItem(ACTIVE_PORTAL_SESSION_KEY);
@@ -244,6 +248,11 @@ $(document).ready(function () {
 
         if (customerData.applicationFormNumber) {
             showServiceDetailsStep(portalSessionId);
+            return;
+        }
+
+        if (customerData.customerType === "Existing Customer" && customerData.programArea && !customerData.existingCustomerInfoReviewed) {
+            showExistingCustomerReviewStep(portalSessionId);
             return;
         }
 
@@ -304,6 +313,8 @@ $(document).ready(function () {
         return urlParams.get("id") || urlParams.get("Id") || "";
     }
 
+    // Portal Session Id commmenting for now--
+
     function updateHomepageUrl(portalSessionId) {
         return portalSessionId;
     }
@@ -315,6 +326,8 @@ function showPortalStep(stepName) {
 
     if (stepName === "form-selection") {
         $("#formSelectionStep").show();
+    } else if (stepName === "existing-customer-review") {
+        $("#existingCustomerReviewStep").show();
     } else if (stepName === "service-details") {
         $("#serviceDetailsStep").show();
     } else {
@@ -324,6 +337,44 @@ function showPortalStep(stepName) {
     $("html, body").animate({
         scrollTop: 0
     }, 250);
+}
+
+function showExistingCustomerReviewStep(portalSessionId) {
+    const portalSession = sessionStorage.getItem(portalSessionId);
+
+    if (!portalSession) {
+        showPortalStep("home");
+        return;
+    }
+
+    const customerData = JSON.parse(portalSession);
+
+    $("#reviewCustomerName").text(customerData.companyName || "");
+    $("#reviewStreetAddress").text(customerData.streetAddress || "");
+    $("#reviewCity").text(customerData.city || "");
+    $("#reviewProvince").text(customerData.province || "");
+
+    $(".existing-review-back-btn").off("click.existingReview").on("click.existingReview", function () {
+        showPortalStep("home");
+    });
+
+    $(".existing-review-continue-btn").off("click.existingReview").on("click.existingReview", function () {
+        const latestPortalSession = sessionStorage.getItem(portalSessionId);
+
+        if (!latestPortalSession) {
+            showPortalStep("home");
+            return;
+        }
+
+        const latestCustomerData = JSON.parse(latestPortalSession);
+        latestCustomerData.existingCustomerInfoReviewed = true;
+
+        sessionStorage.setItem(portalSessionId, JSON.stringify(latestCustomerData));
+        showFormSelectionStep(portalSessionId);
+        
+    });
+
+    showPortalStep("existing-customer-review");
 }
 
 function showFormSelectionStep(portalSessionId) {
@@ -528,17 +579,43 @@ function generateMockCustomerNumber() {
     return customerNumber;
 }
 
-// Sample Data for checking and validating 
+
+// Future implementation:
+
+$.ajax({
+     url: dynamicsApiUrl,
+     method: "GET",
+     headers: {
+         Authorization: "Bearer " + token,
+         Accept: "application/json"
+     }
+});
+
+
+
+// EXISTING CUSTOMER VALIDATION
+// TEMP: MOCK DATA
 function verifyExistingCustomer(customerNumber, postalCode, callback) {
 
     setTimeout(function () {
 
-        const foundCustomer = mockCustomers.find(customer =>
-            customer.customerNumber === customerNumber &&
-            customer.postalCode.toUpperCase() === postalCode.toUpperCase()
-        );
+        const normalizedPostalCode = postalCode
+            .toUpperCase()
+            .replace(/\s/g, '');
+
+        const foundCustomer = mockCustomers.find(function(customer){
+
+            return (
+                customer.customerNumber === customerNumber &&
+                customer.postalCode
+                    .toUpperCase()
+                    .replace(/\s/g, '') === normalizedPostalCode
+            );
+
+        });
 
         if (foundCustomer) {
+
             callback({
                 status: true,
                 customerName: foundCustomer.customerName,
@@ -546,14 +623,19 @@ function verifyExistingCustomer(customerNumber, postalCode, callback) {
                 city: foundCustomer.city,
                 province: foundCustomer.province
             });
+
         } else {
-            callback({ status: false });
+
+            callback({
+                status: false
+            });
+
         }
 
-    }, 1200);
+    }, 800);
 }
 
-console.log(defaultMockCustomers);
+// console.log(defaultMockCustomers);
 
 
     // random id generate 

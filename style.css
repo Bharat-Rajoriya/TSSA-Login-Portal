@@ -28,6 +28,18 @@ img{
     max-width: 100%;
 }
 
+.sr-only{
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
 h1{
     font-family: TSSA ;
     font-weight: 800;
@@ -418,6 +430,47 @@ li{
 .form-selection-section,
 .service-details-form{
     width: 100%;
+}
+
+.existing-customer-review-section{
+    width: 100%;
+    padding-top: 34px;
+}
+
+.existing-customer-review-intro{
+    margin-bottom: 25px;
+    font-size: 1rem;
+    line-height: 1.6;
+}
+
+.review-service-link{
+    color: var(--color-primary);
+    font-weight: 800;
+}
+
+.existing-customer-review-details{
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+    margin: 0 0 72px;
+}
+
+.existing-customer-review-details div{
+    display: flex;
+    align-items: baseline;
+    gap: 5px;
+}
+
+.existing-customer-review-details dt{
+    font-weight: 800;
+}
+
+.existing-customer-review-details dd{
+    margin: 0;
+}
+
+.existing-customer-review-actions{
+    margin-top: 0;
 }
 
 #dynamicProgramInstruction{
@@ -920,6 +973,23 @@ input::-webkit-file-upload-button:hover {
 
     .form-section{
         margin-bottom: 40px;
+    }
+
+    .existing-customer-review-section{
+        padding-top: 10px;
+    }
+
+    .existing-customer-review-details{
+        gap: 22px;
+        margin-bottom: 48px;
+    }
+
+    .existing-customer-review-details div{
+        display: block;
+    }
+
+    .existing-customer-review-details dt{
+        margin-bottom: 4px;
     }
 
     .required-note{

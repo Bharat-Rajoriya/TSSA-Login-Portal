@@ -552,7 +552,7 @@ function saveServiceDetails(portalId, usesHstFees, usesAdditionalAuthorizationFe
     console.log("Step 3 completed:", sessionData);
 
     // commenting below line for now!!
-    window.location.href = "checkout.html?id=" + portalId;
+    // window.location.href = "checkout.html?id=" + portalId;
 }
 
 function validateServiceDetails(serviceDetails, applicationFormFile, supportingFiles, errors, usesHstFees, usesAdditionalAuthorizationFee, requiresExpeditedService){
