@@ -227,6 +227,10 @@ $(document).ready(function () {
         updateCustomerForm();
     };
 
+    window.showExistingCustomerReviewStep = function (portalSessionId) {
+        showExistingCustomerReviewStep(portalSessionId);
+    };
+
 
 
     function restorePortalStepFromSession() {
@@ -582,46 +586,83 @@ function generateMockCustomerNumber() {
 
 // Future implementation:
 
-$.ajax({
-     url: dynamicsApiUrl,
-     method: "GET",
-     headers: {
-         Authorization: "Bearer " + token,
-         Accept: "application/json"
-     }
-});
+// $.ajax({
+//      url: dynamicsApiUrl,
+//      method: "GET",
+//      headers: {
+//          Authorization: "Bearer " + token,
+//          Accept: "application/json"
+//      }
+// });
 
 
 
-// EXISTING CUSTOMER VALIDATION
-// TEMP: MOCK DATA
 function verifyExistingCustomer(customerNumber, postalCode, callback) {
 
-    setTimeout(function () {
+    console.log("Customer Number:", customerNumber);
+    console.log("Postal Code:", postalCode);
 
-        const normalizedPostalCode = postalCode
-            .toUpperCase()
-            .replace(/\s/g, '');
+    const normalizedPostalCode = postalCode
+        .toUpperCase()
+        .replace(/\s/g, '');
 
-        const foundCustomer = mockCustomers.find(function(customer){
+    if (typeof appAjax !== "function") {
+        console.error("Customer Validation Error: appAjax is not available. Confirm the Power Pages safeAjax/appAjax wrapper is loaded before homepage.js.");
 
-            return (
-                customer.customerNumber === customerNumber &&
-                customer.postalCode
-                    .toUpperCase()
-                    .replace(/\s/g, '') === normalizedPostalCode
-            );
-
+        callback({
+            status: false
         });
+        return;
+    }
 
-        if (foundCustomer) {
+    const escapedCustomerNumber = customerNumber.replace(/'/g, "''");
+
+    const filter =
+        "accountnumber eq '" + escapedCustomerNumber + "'" +
+        " and statecode eq 0";
+
+    appAjax(
+        "Validating Customer",
+        {
+            type: "GET",
+            url:
+                "/_api/accounts" +
+                "?$select=name,accountnumber,address1_postalcode" +
+                "&$filter=" + encodeURIComponent(filter)
+        }
+    )
+    .done(function(response) {
+
+        console.log("Customer Validation Response:", response);
+
+        if (
+            response &&
+            response.value &&
+            response.value.length > 0
+        ) {
+
+            const customer = response.value[0];
+            const customerPostalCode = (customer.address1_postalcode || "")
+                .toUpperCase()
+                .replace(/\s/g, '');
+
+            if (customerPostalCode !== normalizedPostalCode) {
+                console.log("Customer Postal Code Mismatch:", customer.address1_postalcode);
+
+                callback({
+                    status: false
+                });
+                return;
+            }
 
             callback({
                 status: true,
-                customerName: foundCustomer.customerName,
-                streetAddress: foundCustomer.streetAddress,
-                city: foundCustomer.city,
-                province: foundCustomer.province
+                customerName: customer.name || "",
+                customerNumber: customer.accountnumber || "",
+                postalCode: customer.address1_postalcode || "",
+                streetAddress: "",
+                city: "",
+                province: ""
             });
 
         } else {
@@ -632,7 +673,19 @@ function verifyExistingCustomer(customerNumber, postalCode, callback) {
 
         }
 
-    }, 800);
+    })
+    .fail(function(error) {
+
+        console.error(
+            "Customer Validation Error:",
+            error
+        );
+
+        callback({
+            status: false
+        });
+
+    });
 }
 
 // console.log(defaultMockCustomers);
