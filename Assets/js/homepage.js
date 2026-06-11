@@ -492,107 +492,99 @@ function verifyExistingCustomer(customerNumber, postalCode, callback) {
         .toUpperCase()
         .replace(/\s/g, '');
 
-    if (typeof appAjax !== "function") {
-        console.error("Customer Validation Error: appAjax is not available. Confirm the Power Pages safeAjax/appAjax wrapper is loaded before homepage.js.");
+    const ajaxCall = getPortalAjax({
+        type: "GET",
+        url:
+            "/_api/accounts" +
+            "?$select=name,accountnumber,address1_postalcode,address1_line1,address1_line2,address1_line3,address1_city,address1_stateorprovince" +
+            "&$filter=" + encodeURIComponent("accountnumber eq '" + customerNumber.replace(/'/g, "''") + "' and statecode eq 0")
+    });
 
+    if (!ajaxCall || typeof ajaxCall.done !== "function") {
+        console.error("Customer Validation Error: No AJAX wrapper available. Confirm the Power Pages safeAjax/appAjax wrapper is loaded before homepage.js.");
         callback({
             status: false
         });
         return;
     }
 
-    const escapedCustomerNumber = customerNumber.replace(/'/g, "''");
+    ajaxCall
+        .done(function(response) {
 
-    const filter =
-        "accountnumber eq '" + escapedCustomerNumber + "'" +
-        " and statecode eq 0";
+            console.log("Customer Validation Response:", response);
 
-    appAjax(
-        "Validating Customer",
-        {
-            type: "GET",
-            url:
-                "/_api/accounts" +
-                "?$select=name,accountnumber,address1_postalcode,address1_line1,address1_line2,address1_line3,address1_city,address1_stateorprovince" +
-                "&$filter=" + encodeURIComponent(filter)
-        }
-    )
-    .done(function(response) {
+            if (typeof response === "string") {
+                try {
+                    response = JSON.parse(response);
+                } catch (error) {
+                    console.error("Customer Validation Parse Error:", error);
 
-        console.log("Customer Validation Response:", response);
+                    callback({
+                        status: false
+                    });
+                    return;
+                }
+            }
 
-        if (typeof response === "string") {
-            try {
-                response = JSON.parse(response);
-            } catch (error) {
-                console.error("Customer Validation Parse Error:", error);
+            if (
+                response &&
+                response.value &&
+                response.value.length > 0
+            ) {
+
+                const customer = response.value[0];
+                const customerPostalCode = (customer.address1_postalcode || "")
+                    .toUpperCase()
+                    .replace(/\s/g, '');
+
+                if (customerPostalCode !== normalizedPostalCode) {
+                    console.log("Customer Postal Code Mismatch:", customer.address1_postalcode);
+
+                    callback({
+                        status: false
+                    });
+                    return;
+                }
+
+                const streetAddress = [
+                    customer.address1_line1,
+                    customer.address1_line2,
+                    customer.address1_line3
+                ].filter(function (addressLine) {
+                    return addressLine;
+                }).join(", ");
+
+                callback({
+                    status: true,
+                    customerName: customer.name || "",
+                    customerNumber: customer.accountnumber || "",
+                    postalCode: customer.address1_postalcode || "",
+                    streetAddress: streetAddress,
+                    city: customer.address1_city || "",
+                    province: customer.address1_stateorprovince || ""
+                });
+
+            } else {
 
                 callback({
                     status: false
                 });
-                return;
-            }
-        }
 
-        if (
-            response &&
-            response.value &&
-            response.value.length > 0
-        ) {
-
-            const customer = response.value[0];
-            const customerPostalCode = (customer.address1_postalcode || "")
-                .toUpperCase()
-                .replace(/\s/g, '');
-
-            if (customerPostalCode !== normalizedPostalCode) {
-                console.log("Customer Postal Code Mismatch:", customer.address1_postalcode);
-
-                callback({
-                    status: false
-                });
-                return;
             }
 
-            const streetAddress = [
-                customer.address1_line1,
-                customer.address1_line2,
-                customer.address1_line3
-            ].filter(function (addressLine) {
-                return addressLine;
-            }).join(", ");
+        })
+        .fail(function(error) {
 
-            callback({
-                status: true,
-                customerName: customer.name || "",
-                customerNumber: customer.accountnumber || "",
-                postalCode: customer.address1_postalcode || "",
-                streetAddress: streetAddress,
-                city: customer.address1_city || "",
-                province: customer.address1_stateorprovince || ""
-            });
-
-        } else {
+            console.error(
+                "Customer Validation Error:",
+                error
+            );
 
             callback({
                 status: false
             });
 
-        }
-
-    })
-    .fail(function(error) {
-
-        console.error(
-            "Customer Validation Error:",
-            error
-        );
-
-        callback({
-            status: false
         });
-
-    });
 }
 
     // random id generate 
@@ -1012,9 +1004,9 @@ function renderApplicationForms(forms, portalId, visibleTableTitle) {
         $("#applicationFormSelect").append('<option value="' + form.code + '">' + optionText + '</option>');
     });
 
-    const sessionData = JSON.parse(sessionStorage.getItem(portalId));
+    const sessionData = JSON.parse(sessionStorage.getItem(portalId) || "{}");
 
-    if (sessionData.applicationFormNumber) {
+    if (sessionData && sessionData.applicationFormNumber) {
         $("#applicationFormSelect").val(sessionData.applicationFormNumber);
     }
 
@@ -1122,20 +1114,6 @@ function showFormSelectionErrors(errors){
     }, 500);
 }
 
-function normalizeValidationError(error){
-    if(typeof error === "string"){
-        return {
-            fieldId: "",
-            message: error
-        };
-    }
-
-    return {
-        fieldId: error.fieldId || "",
-        message: error.message || ""
-    };
-}
-
 function focusFieldFromError(fieldId){
     const $field = $("#" + fieldId);
 
@@ -1197,13 +1175,6 @@ $(document).ready(function(){
 
     initializeServiceDetailsPage(customerData, portalId);
 });
-
-function getUrlParameter(name){
-    name = name.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");
-    var regex = new RegExp("[\\?&]" + name + "=([^&#]*)");
-    var results = regex.exec(location.search);
-    return results === null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "));
-}
 
 function initializeServiceDetailsPage(customerData, portalId){
     const formDisplayName = getSelectedFormDisplayName(customerData);
@@ -1873,20 +1844,6 @@ function showServiceDetailsErrors(errors){
     $("html, body").animate({
         scrollTop: $("#serviceDetailsErrorBox").offset().top - 40
     }, 500);
-}
-
-function normalizeValidationError(error){
-    if(typeof error === "string"){
-        return {
-            fieldId: "",
-            message: error
-        };
-    }
-
-    return {
-        fieldId: error.fieldId || "",
-        message: error.message || ""
-    };
 }
 
 function focusFieldFromError(fieldId){
