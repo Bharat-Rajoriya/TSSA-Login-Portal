@@ -67,6 +67,52 @@ button{
     cursor: pointer;
 }
 
+.loading-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.loading-overlay__content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 28px 24px;
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.18);
+    max-width: 360px;
+    width: 100%;
+    text-align: center;
+}
+
+.loading-spinner {
+    width: 52px;
+    height: 52px;
+    border: 6px solid rgba(0, 0, 0, 0.12);
+    border-top-color: var(--color-primary);
+    border-radius: 50%;
+    animation: loading-spin 1s linear infinite;
+}
+
+.loading-overlay__text {
+    font-size: 0.95rem;
+    color: #151515;
+    line-height: 1.5;
+}
+
+@keyframes loading-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
 a{
     color: var(--color-white);
     cursor: pointer;

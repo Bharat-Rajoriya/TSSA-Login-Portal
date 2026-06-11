@@ -43,6 +43,7 @@
     restoreActivePortalSession();
     updateCustomerForm();
     restorePortalStepFromSession();
+    initializeHomepageTables();
 
 
 
@@ -157,8 +158,11 @@
             }
 
             $continueBtn.prop("disabled", true);
+            showLoadingOverlay("Validating existing customer details...");
 
             verifyExistingCustomer(customerNumber, existingPostalCode, function (verificationResult) {
+
+                hideLoadingOverlay();
 
                 if (!verificationResult.status) {
                     $("#customerNumber").addClass("input-error");
@@ -324,6 +328,11 @@ function showExistingCustomerReviewStep(portalSessionId) {
     $("#reviewProvince").text(customerData.province || "");
 
     $(".existing-review-back-btn").off("click.existingReview").on("click.existingReview", function () {
+        if (typeof window.showPortalHomeStep === "function") {
+            window.showPortalHomeStep();
+            return;
+        }
+
         showPortalStep("home");
     });
 
@@ -679,221 +688,360 @@ function initializeDynamicFormPage(customerData, portalId){
 
 
 function loadApplicationForms(programArea, portalId){
+    const visibleTableTitle = getProgramAreaVisibleTableTitle(programArea);
+    const programCategory = getProgramAreaFormCategory(programArea);
 
-    const formsDatabase = {
+    console.log("loadApplicationForms called - Program Area:", programArea, "Category:", programCategory, "Visible Title:", visibleTableTitle);
 
-        "amusement-devices": {
-            dropdownOptions: [
-                {code:"AD-000-v1", title:"TSSA USE ONLY"},
-                {code:"AD-000-v2", title:"TSSA USE ONLY"},
-                {code:"AD-003-v5", title:"Application for New Amusement Business License"},
-                {code:"AD-008-v4", title:"TSSA Bulk Exam Request"}
-            ],
-            visibleTableTitle: "Amusement Devices Application Forms",
-            visibleTable: [
-                {code:"AD-003", title:"Application for New Amusement Business License"},
-                {code:"AD-008", title:"TSSA Bulk Exam Request"}
-            ]
-        },
-
-        "boilers-pressure-vessels": {
-            dropdownOptions: [
-                {code:"BPV-000-v1", title:"TSSA USE ONLY"},
-                {code:"BPV-000-v2", title:"TSSA USE ONLY"},
-                {code:"BPV-006-v4", title:""},
-                {code:"BPV-007-v6", title:""},
-                {code:"BPV-008-v5", title:""},
-                {code:"BPV-009-v5", title:""},
-                {code:"BPV-015-v1", title:""},
-                {code:"BPV-016-v1", title:""}
-            ],
-            visibleTableTitle: "Boilers & Pressure Vessels Application Forms",
-            visibleTable: [
-                {code:"BPV-006", title:"Seminar Registration Form"},
-                {code:"BPV-007", title:"Application for Non-Nuclear Ontario Certificate of Authorization"},
-                {code:"BPV-008", title:"Application for an Ontario Certificate of Authorization For Ontario based businesses CSA N285.0 Metallic Material Organizations"},
-                {code:"BPV-009", title:"Application for an Ontario Certificate of Authorization For Ontario based businesses CSA N285.0 Nuclear Components"},
-                {code:"BPV-015", title:"Boilers and Pressure Vessels - Safety TSSA Regulatory Requirements Training (Module 1)"},
-                {code:"BPV-016", title:"Request for Extension of Ontario Certificate of Authorization"}
-            ]
-        },
-
-        "elevating-devices": {
-            dropdownOptions: [
-                {code:"ED-000-v1", title:"TSSA USE ONLY"},
-                {code:"ED-000-v2", title:"TSSA USE ONLY"},
-                {code:"ED-004-v9", title:""},
-                {code:"ED-006-v7", title:""},
-                {code:"ED-007-v7", title:""},
-                {code:"ED-008-v7", title:""},
-                {code:"ED-009-v7", title:""},
-                {code:"ED-010-v7", title:""},
-                {code:"ED-011-v7", title:""},
-                {code:"ED-012-v7", title:""},
-                {code:"ED-013-v7", title:""},
-                {code:"ED-017-v4", title:""},
-                {code:"ED-018-v4", title:""},
-                {code:"TSSA-999-v2", title:""}
-            ],
-            visibleTableTitle: "Elevating Devices Application Forms",
-            visibleTable: [
-                {code:"ED-004", title:"Application for Reinstatement of an Elevating Device License"},
-                {code:"ED-006", title:"Elevating Device General Contractor Registration"},
-                {code:"ED-007", title:"Application for Reinstatement as an Elevating Devices Contractor"},
-                {code:"ED-008", title:"Consultant Contractor Registration Form and Renewal Package"},
-                {code:"ED-009", title:"Application for Reinstatement as an Elevating Devices Consultant (Contractor)"},
-                {code:"ED-010", title:"Elevating Devices Evacuation Contractor Registration"},
-                {code:"ED-011", title:"Application for Reinstatement as an Elevating Devices Evacuation Contractor"},
-                {code:"ED-012", title:"Elevating Devices Owner Contractor Registration"},
-                {code:"ED-013", title:"Application for Reinstatement as an Elevating Devices Owner Contractor"},
-                {code:"ED-017", title:"TSSA Bulk Exam Request"},
-                {code:"ED-018", title:"Reactivate Application for an Elevating Device"}
-            ]
-        },
-
-        "fuels": {
-            dropdownOptions: [
-                {code:"FS-000-v1", title:"TSSA USE ONLY"},
-                {code:"FS-000-v2", title:"TSSA USE ONLY"},
-                {code:"FS-025-v5", title:""},
-                {code:"FS-026-v4", title:""},
-                {code:"FS-029-v5", title:""},
-                {code:"FS-035-v5", title:""},
-                {code:"FS-036-v6", title:""},
-                {code:"FS-037-v5", title:""},
-                {code:"FS-039-v5", title:""},
-                {code:"FS-041-v6", title:""},
-                {code:"FS-042-v6", title:""},
-                {code:"FS-043-v5", title:""},
-                {code:"FS-044-v5", title:""},
-                {code:"FS-045-v6", title:""},
-                {code:"FS-047-v6", title:""},
-                {code:"FS-048-v6", title:""},
-                {code:"FS-049-v6", title:""},
-                {code:"FS-051-v6", title:""},
-                {code:"FS-052-v6", title:""},
-                {code:"FS-056-v2", title:""}
-            ],
-            visibleTableTitle: "Fuels Application Forms",
-            visibleTable: [
-                {code:"FS-025", title:"Vehicle Label Order Form"},
-                {code:"FS-026", title:"Red Tag/Pressure Test Tag Order Form"},
-                {code:"FS-029", title:"TSSA Training Provider Bulk Exam Request"},
-                {code:"FS-035", title:"Application for Modification or Change of Steel - Propane Container Refill Centre or a Filling Plant"},
-                {code:"FS-036", title:"Application for an Ontario Licence to Operate Propane Cylinder Exchange- New"},
-                {code:"FS-037", title:"Application for an Ontario Licence to Operate a Propane Cylinder Handling Facility - Change of License Holder"},
-                {code:"FS-039", title:"Application for an Ontario Licence to Operate a Compressed Gas Refuelling Station - Change of License Holder"},
-                {code:"FS-041", title:"Application for Reinstatement in Ontario as a Fuels Contractor"},
-                {code:"FS-042", title:"Application for Reinstatement of an Ontario Licence to Operate a Propane Container Refill Centre or a Filling Plant"},
-                {code:"FS-043", title:"Application for Reinstatement of an Ontario Licence to Operate a Propane Cylinder Handling Facility"},
-                {code:"FS-044", title:"Application for Reinstatement of an Ontario Licence to Operate as a Conversion Centre"},
-                {code:"FS-045", title:"Application for Reinstatement of an Ontario Licence to Operate Propane Cylinder Exchange"},
-                {code:"FS-047", title:"Application for Reinstatement of an Ontario Licence to Transmit Natural Gas by Pipeline"},
-                {code:"FS-048", title:"Application for Reinstatement of an Ontario Licence to Distribute Gas"},
-                {code:"FS-049", title:"Application for Reinstatement of an Ontario Licence to Operate a Compressed Gas Refuelling Station"},
-                {code:"FS-051", title:"Application for Reinstatement of an Ontario Licence to Transmit Oil by Pipeline"},
-                {code:"FS-052", title:"Application for Reinstatement of an Ontario Licence to Operate a Retail Outlet or a Bulk Storage Plant"},
-                {code:"FS-056", title:"Application for an Ontario Licence to Operate as a Conversion Center - Change of Ownership"}
-            ]
-        },
-
-        "operating-engineers": {
-            dropdownOptions: [
-                {code:"OE-000-v1", title:"TSSA USE ONLY"},
-                {code:"OE-000-v2", title:"TSSA USE ONLY"},
-                {code:"OE-001-v6", title:""},
-                {code:"OE-002-v6", title:""},
-                {code:"OE-005-v5", title:""},
-                {code:"TSSA-999-v8", title:""},
-                {code:"TSSA-999-v9", title:""},
-                {code:"OE-006-v4", title:""}
-            ],
-            visibleTableTitle: "Operating Engineers Application Forms",
-            visibleTable: [
-                {code:"OE-001", title:"Application for Certificate of Registration of a Plant"},
-                {code:"OE-002", title:"Application for Alternate Rules and Changes to Previous Submissions"},
-                {code:"OE-005", title:"Application for Duplicate Certificate of Registration or Name Change of a Plant"},
-                {code:"OE-006", title:"TSSA Bulk Exam Request"}
-            ]
-        },
-
-        "public-information": {
-            dropdownOptions: [
-                {code:"PI-096-v4", title:""}
-            ],
-            visibleTableTitle: "Public Information Application Forms",
-            visibleTable: [
-                {code:"PI-096", title:"Application for Database Product"}
-            ]
-        },
-
-        "ski-lifts": {
-            dropdownOptions: [
-                {code:"Ski-000-v1", title:"TSSA USE ONLY"},
-                {code:"Ski-000-v2", title:"TSSA USE ONLY"},
-                {code:"Ski-009-v4", title:""},
-                {code:"Ski-010-v5", title:""},
-                {code:"Ski-011-v5", title:""},
-                {code:"Ski-012-v5", title:""},
-                {code:"Ski-013-v5", title:""},
-                {code:"Ski-014-v5", title:""},
-                {code:"Ski-015-v4", title:""},
-                {code:"TSSA-Ski-999-v1", title:""}
-            ],
-            visibleTableTitle: "Ski Application Forms",
-            visibleTable: [
-                {code:"Ski-009", title:"TSSA Bulk Exam Request"},
-                {code:"Ski-010", title:"Ski Passenger Ropeway Contractor"},
-                {code:"Ski-011", title:"Ski Passenger Ropeway Owner Contractor"},
-                {code:"Ski-012", title:"Ski Passenger Ropeway Consultant Contractor"},
-                {code:"Ski-013", title:"Reinstatement as a Ski Passenger Ropeway General Contractor"},
-                {code:"Ski-014", title:"Reinstatement as a Ski Passenger Ropeway Owner Contractor"},
-                {code:"Ski-015", title:"Reinstatement as a Ski Passenger Ropeway Consultant Contractor"}
-            ]
-        }
-    };
-
-    const currentForms = formsDatabase[programArea];
-
-    if(!currentForms){
+    if (!visibleTableTitle || !programCategory) {
+        console.error("loadApplicationForms invalid configuration - Missing title or category");
+        showFormSelectionErrors([{ message: "Unable to load application forms. Invalid program area selected." }]);
         return;
     }
 
+    showLoadingOverlay("Loading application forms...");
+
+    fetchPortalForms(programCategory)
+        .done(function (forms) {
+            console.log("loadApplicationForms: fetchPortalForms succeeded with", forms ? forms.length : 0, "forms");
+            if (!forms || forms.length === 0) {
+                console.warn("fetchPortalForms returned no forms for program area:", programArea);
+                showFormSelectionErrors([{ message: "No application forms are available at this time." }]);
+                renderEmptyFormSelection(visibleTableTitle);
+                return;
+            }
+
+            renderApplicationForms(forms, portalId, visibleTableTitle);
+        })
+        .fail(function (error) {
+            console.error("loadApplicationForms: fetchPortalForms failed for program area:", programArea, error);
+            showFormSelectionErrors([{ message: "Unable to load application forms. Please try again later." }]);
+            renderEmptyFormSelection(visibleTableTitle);
+        });
+}
+
+function fetchPortalForms(programCategory) {
+    const deferred = $.Deferred();
+
+    let ajaxCall;
+
+    console.log("fetchPortalForms called for category:", programCategory);
+    
+    try {
+        const apiUrl = "https://tssadm40.crm3.dynamics.com/api/data/v9.2/cre04_tssa_formses?$select=cre04_tssa_formsid,cre04_field1,cre04_field2,cre04_title&$orderby=cre04_field1 asc";
+        const ajaxOptions = {
+            type: "GET",
+            url: apiUrl,
+            dataType: "json"
+        };
+        
+        console.log("fetchPortalForms attempting to call API:", apiUrl);
+        ajaxCall = getPortalAjax(ajaxOptions);
+    } catch (error) {
+        console.error("fetchPortalForms error creating AJAX call:", error);
+        deferred.reject(error);
+        return deferred.promise();
+    }
+
+    if (!ajaxCall || typeof ajaxCall.done !== "function") {
+        console.error("fetchPortalForms error: AJAX wrapper returned invalid object.");
+        console.warn("NOTE: This typically means the Power Pages framework (appAjax/portalSafeAjax) is not properly loaded.");
+        deferred.reject({ message: "Invalid AJAX wrapper" });
+        return deferred.promise();
+    }
+
+    ajaxCall
+        .done(function (response) {
+            console.log("fetchPortalForms AJAX response:", response);
+            response = parseDataverseResponse(response);
+
+            if (!response.value || !Array.isArray(response.value)) {
+                console.warn("fetchPortalForms unexpected response structure:", response);
+                deferred.reject(response);
+                return;
+            }
+
+            console.log("fetchPortalForms parsed " + response.value.length + " forms for category:", programCategory);
+            const normalizedCategory = normalizeString(programCategory);
+            const codePrefixes = getProgramAreaCodePrefixes(programCategory);
+
+            const forms = response.value
+                .map(parsePortalFormRecord)
+                .filter(function (form) {
+                    if (!form) {
+                        return false;
+                    }
+
+                    if (normalizeString(form.programCategory) === normalizedCategory) {
+                        return true;
+                    }
+
+                    return codePrefixes.some(function (prefix) {
+                        return form.code.toUpperCase().startsWith(prefix.toUpperCase());
+                    });
+                });
+
+            console.log("fetchPortalForms filtered to " + forms.length + " forms");
+            deferred.resolve(forms);
+        })
+        .fail(function (jqXHR, textStatus, errorThrown) {
+            console.error("fetchPortalForms AJAX request failed");
+            console.error("  Status Code:", jqXHR.status);
+            console.error("  Status Text:", jqXHR.statusText);
+            console.error("  Error Thrown:", errorThrown);
+            console.error("  Text Status:", textStatus);
+            console.error("  Response Text:", jqXHR.responseText);
+            console.error("  Response JSON:", jqXHR.responseJSON);
+            
+            const errorMsg = {
+                status: jqXHR.status,
+                statusText: jqXHR.statusText,
+                errorThrown: errorThrown,
+                textStatus: textStatus,
+                message: jqXHR.status === 0 ? "Unable to reach API endpoint (CORS or network error)" : (jqXHR.statusText || errorThrown)
+            };
+            deferred.reject(errorMsg);
+        });
+
+    return deferred.promise();
+}
+
+function parsePortalFormRecord(record) {
+    const rawField1 = (record.cre04_field1 || "").toString();
+    const code = extractFormCode(rawField1);
+    const title = (record.cre04_field2 && record.cre04_field2.toString().trim()) || extractTitleFromField1(rawField1) || code;
+    const programCategory = (record.cre04_title || "").toString().trim();
+
+    if (!code) {
+        return null;
+    }
+
+    return {
+        code: code,
+        title: title,
+        programCategory: programCategory
+    };
+}
+
+function extractFormCode(rawField1) {
+    const match = rawField1.match(/^([A-Za-z0-9]+-[A-Za-z0-9]+-v\d+)/i);
+    return match ? match[1] : rawField1.trim();
+}
+
+function extractTitleFromField1(rawField1) {
+    const code = extractFormCode(rawField1);
+
+    if (!code) {
+        return rawField1.trim();
+    }
+
+    return rawField1.substring(code.length + 1).trim();
+}
+
+function getProgramAreaFormCategory(programArea) {
+    const categories = {
+        "amusement-devices": "Amusement Devices",
+        "boilers-pressure-vessels": "Boilers & Pressure Vessels",
+        "elevating-devices": "Elevating Devices",
+        "fuels": "Fuels",
+        "operating-engineers": "Operating Engineers",
+        "public-information": "Public Information",
+        "ski-lifts": "Ski Lifts"
+    };
+
+    return categories[programArea] || "";
+}
+
+function getProgramAreaCodePrefixes(programArea) {
+    const prefixes = {
+        "amusement-devices": ["AD-"],
+        "boilers-pressure-vessels": ["BPV-"],
+        "elevating-devices": ["ED-"],
+        "fuels": ["FS-"],
+        "operating-engineers": ["OE-", "TSSA-"],
+        "public-information": ["PI-"],
+        "ski-lifts": ["Ski-"]
+    };
+
+    return prefixes[programArea] || [];
+}
+
+function getPortalAjax(options) {
+    if (typeof window.portalSafeAjax === "function") {
+        return window.portalSafeAjax(options);
+    }
+
+    if (typeof appAjax === "function") {
+        return appAjax(options);
+    }
+
+    if (typeof $.ajax === "function") {
+        return $.ajax(options);
+    }
+
+    const deferred = $.Deferred();
+    deferred.reject({ message: "No AJAX wrapper available" });
+    return deferred.promise();
+}
+
+function parseDataverseResponse(response) {
+    if (typeof response === "string") {
+        try {
+            response = JSON.parse(response);
+        } catch (error) {
+            console.error("Unable to parse Dataverse response string:", error, response);
+            return { value: [] };
+        }
+    }
+
+    if (response && typeof response === "object" && response.d && typeof response.d === "object") {
+        response = response.d;
+    }
+
+    return response || { value: [] };
+}
+
+function normalizeString(value) {
+    return (value || "").toString().trim().toLowerCase().replace(/\s+/g, " ").replace(/&/g, "and");
+}
+
+function initializeHomepageTables() {
+    const homepageData = [
+        "amusement-devices",
+        "boilers-pressure-vessels",
+        "elevating-devices",
+        "fuels",
+        "operating-engineers",
+        "public-information",
+        "ski-lifts"
+    ];
+
+    homepageData.forEach(function (programArea) {
+        loadHomepageProgramTable(programArea);
+    });
+}
+
+function loadHomepageProgramTable(programArea) {
+    fetchPortalForms(getProgramAreaFormCategory(programArea))
+        .done(function (forms) {
+            if (!forms || forms.length === 0) {
+                console.warn("fetchPortalForms returned no homepage forms for program area:", programArea);
+                renderHomepageProgramTable(programArea, []);
+                return;
+            }
+
+            renderHomepageProgramTable(programArea, forms);
+        })
+        .fail(function (error) {
+            console.error("fetchPortalForms failed for homepage program area:", programArea, error);
+            renderHomepageProgramTable(programArea, []);
+        });
+}
+
+function renderHomepageProgramTable(programArea, forms) {
+    const sectionId = programArea + "HomepageTable";
+    const title = getProgramAreaVisibleTableTitle(programArea);
+    const rows = (forms || []).map(function (form) {
+        return '<tr><td>' + form.code + '</td><td>' + (form.title || "") + '</td></tr>';
+    }).join("");
+
+    const tableHtml = '<table class="program-form-table"><tr><th colspan="2">' + title + '</th></tr>' + (rows || '<tr><td colspan="2">No forms available.</td></tr>') + '</table>';
+
+    var $container = $("#" + sectionId);
+
+    if (!$container.length) {
+        $container = $("<div></div>").attr("id", sectionId).addClass("homepage-program-table");
+        $("#homepageStep").append($container);
+    }
+
+    $container.html(tableHtml);
+}
+
+function getProgramAreaVisibleTableTitle(programArea) {
+    const titles = {
+        "amusement-devices": "Amusement Devices Application Forms",
+        "boilers-pressure-vessels": "Boilers & Pressure Vessels Application Forms",
+        "elevating-devices": "Elevating Devices Application Forms",
+        "fuels": "Fuels Application Forms",
+        "operating-engineers": "Operating Engineers Application Forms",
+        "public-information": "Public Information Application Forms",
+        "ski-lifts": "Ski Application Forms"
+    };
+
+    return titles[programArea] || "";
+}
+
+function showLoadingOverlay(message) {
+    const $overlay = $("#loadingOverlay");
+
+    if (!$overlay.length) {
+        return;
+    }
+
+    $overlay.find(".loading-overlay__text").text(message || "Loading...");
+    $overlay.show();
+}
+
+function hideLoadingOverlay() {
+    const $overlay = $("#loadingOverlay");
+
+    if (!$overlay.length) {
+        return;
+    }
+
+    $overlay.hide();
+}
+
+function renderEmptyFormSelection(visibleTableTitle) {
+    $("#applicationFormSelect").empty();
+    $("#applicationFormSelect").append('<option value="">Unable to load forms</option>');
+    $("#applicationFormSelect").prop("disabled", true);
+    $(".continue-form-btn").prop("disabled", true);
+
+    const tableHtml = '<table class="program-form-table"><tr><th colspan="2">' + visibleTableTitle + '</th></tr><tr><td colspan="2">Unable to display form list at this time.</td></tr></table>';
+    $("#formDescriptionTable").html(tableHtml);
+    hideLoadingOverlay();
+}
+
+function renderApplicationForms(forms, portalId, visibleTableTitle) {
     $("#applicationFormSelect").empty();
     $("#applicationFormSelect").append('<option value="">Please select an Application Form.</option>');
 
-    currentForms.dropdownOptions.forEach(function(form){
-        const optionText = form.title ? form.code + '-' + form.title : form.code;
-        $("#applicationFormSelect").append('<option value="'+form.code+'">'+optionText+'</option>');
+    forms.forEach(function (form) {
+        const optionText = form.title ? form.code + ' - ' + form.title : form.code;
+        $("#applicationFormSelect").append('<option value="' + form.code + '">' + optionText + '</option>');
     });
 
     const sessionData = JSON.parse(sessionStorage.getItem(portalId));
 
-    if(sessionData.applicationFormNumber){
+    if (sessionData.applicationFormNumber) {
         $("#applicationFormSelect").val(sessionData.applicationFormNumber);
     }
 
     let tableHtml = '<table class="program-form-table">';
-    tableHtml += '<tr><th colspan="2">'+currentForms.visibleTableTitle+'</th></tr>';
+    tableHtml += '<tr><th colspan="2">' + visibleTableTitle + '</th></tr>';
 
-    currentForms.visibleTable.forEach(function(form){
-        tableHtml += '<tr><td>'+form.code+'</td><td>'+form.title+'</td></tr>';
+    const visibleForms = getVisibleFormTableRows(forms);
+
+    visibleForms.forEach(function (form) {
+        tableHtml += '<tr><td>' + form.code + '</td><td>' + form.title + '</td></tr>';
     });
 
     tableHtml += '</table>';
 
     $("#formDescriptionTable").html(tableHtml);
+    $("#applicationFormSelect").prop("disabled", false);
+    $(".continue-form-btn").prop("disabled", false);
+    hideLoadingOverlay();
 
-
-    $(".continue-form-btn").off("click.formSelection").on("click.formSelection", function(){
-
+    $(".continue-form-btn").off("click.formSelection").on("click.formSelection", function () {
         clearFormSelectionErrors();
 
         const selectedForm = $("#applicationFormSelect").val();
 
-        if(selectedForm == ""){
+        if (selectedForm == "") {
             $("#applicationFormSelect").addClass("input-error");
-            showFormSelectionErrors([{fieldId: "applicationFormSelect", message: "Please select an Application Form Number."}]);
+            showFormSelectionErrors([{ fieldId: "applicationFormSelect", message: "Please select an Application Form Number." }]);
             return;
         }
 
@@ -905,7 +1053,7 @@ function loadApplicationForms(programArea, portalId){
 
         console.log("Step 2 completed:", sessionData);
 
-        if(typeof window.showServiceDetailsStep === "function"){
+        if (typeof window.showServiceDetailsStep === "function") {
             window.showServiceDetailsStep(portalId);
             return;
         }
@@ -914,6 +1062,31 @@ function loadApplicationForms(programArea, portalId){
     });
 }
 
+function getVisibleFormTableRows(forms) {
+    const visibleForms = [];
+    const seenCodes = {};
+
+    forms.forEach(function (form) {
+        const shouldHide = form.title.toUpperCase().includes("TSSA USE ONLY") || form.code.toUpperCase().includes("-000-");
+        const baseCode = getBaseFormCode(form.code);
+
+        if (shouldHide || seenCodes[baseCode]) {
+            return;
+        }
+
+        seenCodes[baseCode] = true;
+        visibleForms.push({
+            code: baseCode,
+            title: form.title
+        });
+    });
+
+    return visibleForms;
+}
+
+function getBaseFormCode(formCode) {
+    return formCode.replace(/-v\d+$/i, "");
+}
 
 function showFormSelectionErrors(errors){
 
