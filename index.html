@@ -28,6 +28,62 @@
     <!-- jQuery CDN -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
 
+    <!-- Power Pages Framework Scripts -->
+    <!-- Dynamics 365 Client SDK -->
+    <script src="/_static/_common/xrm.js"></script>
+    
+    <!-- Power Pages Core Client Script -->
+    <script>
+        // Fallback for Power Pages safeAjax wrapper if not already defined
+        if (typeof window.portalSafeAjax === "undefined" && typeof window.appAjax === "undefined") {
+            // Create a wrapper that uses fetch if available
+            window.portalSafeAjax = function(options) {
+                var deferred = $.Deferred();
+                
+                if (options.type && options.url) {
+                    var fetchOptions = {
+                        method: options.type,
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'OData-MaxVersion': '4.0',
+                            'OData-Version': '4.0',
+                            'Accept': 'application/json'
+                        },
+                        credentials: 'include'
+                    };
+                    
+                    if (options.data) {
+                        fetchOptions.body = typeof options.data === 'string' ? options.data : JSON.stringify(options.data);
+                    }
+                    
+                    fetch(options.url, fetchOptions)
+                        .then(function(response) {
+                            if (!response.ok) {
+                                return response.text().then(function(text) {
+                                    var errorObj = { status: response.status, statusText: response.statusText, responseText: text };
+                                    throw errorObj;
+                                });
+                            }
+                            return response.json();
+                        })
+                        .then(function(data) {
+                            deferred.resolve(data);
+                        })
+                        .catch(function(error) {
+                            deferred.reject(error);
+                        });
+                } else {
+                    deferred.reject({ message: "Invalid AJAX options" });
+                }
+                
+                return deferred.promise();
+            };
+            
+            // Create appAjax as alias to portalSafeAjax
+            window.appAjax = window.portalSafeAjax;
+        }
+    </script>
+
 </head>
 <body>
     <div id="loadingOverlay" class="loading-overlay" aria-live="polite" aria-label="Loading" style="display:none;">
