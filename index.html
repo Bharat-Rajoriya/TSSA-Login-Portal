@@ -95,8 +95,7 @@
 
     <nav id="siteNav" class="div" aria-label="Primary navigation"></nav>
 
-    <main> 
-        
+      <main id="main">
         <div class="header-title ">
             <h1>TSSA Service Prepayment Portal</h1>
         </div>
@@ -542,7 +541,7 @@
                                 </div>
 
                                 <div class="form-actions">
-                                    <button type="submit" class="continue-btn">Continue</button>
+                                    <button type="button" class="continue-btn">Continue</button>
                                 </div>
                             </section>
                             
@@ -553,7 +552,233 @@
             
         </div>
 
+        <div id="existingCustomerReviewStep" class="portal-step container" style="display:none;">
+            <section class="existing-customer-review-section" aria-labelledby="existing-customer-review-heading">
+                <h2 id="existing-customer-review-heading" class="sr-only">Existing Customer Information Review</h2>
 
+                <p class="existing-customer-review-intro">
+                    Please review your existing customer information, and then click Continue. If any of the following details are incorrect, contact our <a href="https://www.tssa.org/contact-us" target="_blank" class="review-service-link">Customer Service Centre</a>.
+                </p>
+
+                <dl class="existing-customer-review-details">
+                    <div>
+                        <dt>Company Name or Individual Name:</dt>
+                        <dd id="reviewCustomerName"></dd>
+                    </div>
+                    <div>
+                        <dt>Street Address:</dt>
+                        <dd id="reviewStreetAddress"></dd>
+                    </div>
+                    <div>
+                        <dt>City:</dt>
+                        <dd id="reviewCity"></dd>
+                    </div>
+                    <div>
+                        <dt>Province or State:</dt>
+                        <dd id="reviewProvince"></dd>
+                    </div>
+                </dl>
+
+                <div class="form-actions dual-btns existing-customer-review-actions">
+                    <button type="button" class="back-btn existing-review-back-btn">Back</button>
+                    <button type="button" class="continue-form-btn existing-review-continue-btn">Continue</button>
+                </div>
+            </section>
+        </div>
+
+        <div id="formSelectionStep" class="portal-step container" style="display:none;">
+            <div id="formSelectErrorBox" class="form-error-box" style="display:none;">
+                <strong>Please review the following errors</strong>
+                <ul id="formSelectErrorList"></ul>
+            </div>
+
+            <section class="form-selection-section">
+                <p class="required-note">Required fields are marked with asterisks (<span style="color: var(--color-primary);">*</span>)</p>
+
+                <p id="dynamicProgramInstruction"></p>
+
+                <div class="form-grid">
+                    <div class="form-field form-field-full">
+                        <label for="applicationFormSelect">
+                            Application Form Number (obtain from bottom left of your application form) <span>*</span>
+                        </label>
+
+                        <select id="applicationFormSelect">
+                            <option value="">Please select an Application Form.</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="formDescriptionTable"></div>
+
+                <div class="form-actions dual-btns">
+                    <button type="button" class="back-btn">Back</button>
+                    <button type="button" class="continue-form-btn">Continue</button>
+                </div>
+            </section>
+        </div>
+
+        <div id="serviceDetailsStep" class="portal-step container" style="display:none;">
+            <div id="serviceDetailsErrorBox" class="form-error-box" style="display:none;">
+                <strong>Please review the following errors</strong>
+                <ul id="serviceDetailsErrorList"></ul>
+            </div>
+
+            <form id="serviceDetailsForm" class="service-details-form" novalidate>
+                <p class="required-note">Required fields are marked with asterisks (<span style="color: var(--color-primary);">*</span>)</p>
+                <p id="serviceDetailsInstruction" class="form-intro"></p>
+
+                <section class="form-section" aria-labelledby="primary-contact-heading">
+                    <h2 id="primary-contact-heading">Primary Contact Information</h2>
+
+                    <div class="form-grid">
+                        <div class="form-field form-field-full">
+                            <label for="contactName">Contact Name or Name of Submitter <span>*</span></label>
+                            <input type="text" id="contactName" name="contactName" placeholder="Please enter the Contact Name or the Name of the Submitter for the Application Form.">
+                        </div>
+
+                        <div class="form-field">
+                            <label for="emailAddress">
+                                Email Address <span>*</span>
+                                <button type="button" class="info-trigger" aria-label="Email Address help">
+                                    ?
+                                    <span class="info-tooltip">A prepayment receipt will be sent to this email address.</span>
+                                </button>
+                            </label>
+                            <input type="email" id="emailAddress" name="emailAddress" placeholder="Please enter a valid Email Address.">
+                        </div>
+
+                        <div class="form-field">
+                            <label for="phoneNumber">Phone Number <span>*</span></label>
+                            <input type="tel" id="phoneNumber" name="phoneNumber" placeholder="___-___-____" maxlength="12" inputmode="numeric" autocomplete="tel">
+                        </div>
+
+                        <div class="form-field">
+                            <label for="secondaryEmailAddress">Optional Secondary Email Address</label>
+                            <input type="email" id="secondaryEmailAddress" name="secondaryEmailAddress" placeholder="Please enter any optional secondary Email Address.">
+                        </div>
+
+                        <div class="form-field">
+                            <label for="tertiaryEmailAddress">Optional Tertiary Email Address</label>
+                            <input type="email" id="tertiaryEmailAddress" name="tertiaryEmailAddress" placeholder="Please enter any optional tertiary Email Address.">
+                        </div>
+
+                        <div class="form-field form-field-full">
+                            <label for="customerReference">Customer Reference</label>
+                            <input type="text" id="customerReference" name="customerReference" placeholder="Please enter any Customer Reference information.">
+                        </div>
+                    </div>
+                </section>
+
+                <section class="form-section" aria-labelledby="fees-heading">
+                    <h2 id="fees-heading">Fees</h2>
+                    <p class="form-intro">Please enter the fee amount(s) from your completed application form.</p>
+
+                    <div class="form-grid service-fee-grid">
+                        <div class="form-field form-field-full service-amount-field service-fee-field">
+                            <label for="authorizationFee">Authorization Fee (Licence/Registration/Certificate/Permit) - Box "2" from application form <span>*</span></label>
+                            <input type="text" id="authorizationFee" name="authorizationFee" placeholder="$0.00" inputmode="decimal">
+                        </div>
+
+                        <div class="form-field service-hst-field" style="display:none;">
+                            <label for="hstFee">HST</label>
+                            <input type="text" id="hstFee" name="hstFee" value="$0.00" readonly>
+                        </div>
+
+                        <div class="form-field form-field-full service-amount-field additional-authorization-field" style="display:none;">
+                            <label for="additionalAuthorizationFee">Authorization Fee (Licence/Registration/Certificate/Permit) - Box "2" from application form <span>*</span></label>
+                            <input type="text" id="additionalAuthorizationFee" name="additionalAuthorizationFee" placeholder="$0.00" inputmode="decimal">
+                        </div>
+
+                        <div class="form-field form-field-full service-amount-field total-fee-field">
+                            <label for="totalFees">Total Fees</label>
+                            <input type="text" id="totalFees" name="totalFees" value="$0.00" readonly>
+                        </div>
+
+                        <div class="form-field form-field-full expedited-service-field" style="display:none;">
+                            <label for="expeditedService">Are you paying for an Expedited (Rush) service? (Note: For EDADSKI submissions, you must select No.)</label>
+                            <select id="expeditedService" name="expeditedService">
+                                <option value="" selected>Please indicate if you are paying for an Expedited (Rush) service. (Note: For EDADSKI submissions, you must select No.)</option>
+                                <option value="Yes">Yes</option>
+                                <option value="No">No</option>
+                            </select>
+                        </div>
+
+                        <div class="form-field form-field-full rush-service-field" style="display:none;">
+                            <label for="rushService">Rush Service</label>
+                            <input type="text" id="rushService" name="rushService" value="RUSH -" readonly>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="documentsSection" class="form-section" aria-labelledby="documents-heading">
+                    <h2 id="documents-heading">Documents</h2>
+                    <p class="form-intro">Please upload the requested application form and, optionally, any supporting documentation.</p>
+
+                    <div class="form-grid">
+                        <div class="form-field form-field-full">
+                            <label for="applicationFormUpload">
+                                Application Form Upload <span>*</span>
+                                <button type="button" class="info-trigger" aria-label="Application Form Upload help">
+                                    ?
+                                    <span class="info-tooltip">Only one application form can be uploaded per prepayment session. If you are submitting another application, please start a new prepayment session after you have completed this session.</span>
+                                </button>
+                            </label>
+                            <div id="applicationFormUploadNotice" class="upload-notice" style="display:none;">
+                                <span class="upload-notice-icon">&#10003;</span>
+                                Successfully uploaded file
+                                <button type="button" class="upload-notice-close" aria-label="Close upload message">&times;</button>
+                            </div>
+                            <div id="applicationFormFileList" class="uploaded-file-list" aria-live="polite"></div>
+                            <input type="file" id="applicationFormUpload" name="applicationFormUpload" accept=".pdf,.doc,.docx,.xls,.xlsx,.7z,.zip">
+                            <small>Allowed extensions pdf, doc, docx, xls, xlsx, 7z, zip. Maximum file size is 50MB.</small>
+                        </div>
+
+                        <div class="form-field form-field-full">
+                            <label for="supportingDocuments">
+                                Supporting Documents
+                                <button type="button" class="info-trigger" aria-label="Supporting Documents help">
+                                    ?
+                                    <span class="info-tooltip">Up to 15 files can be uploaded with a maximum file size of 50MB. To reduce the number of files, you can compress multiple files into a single "zip" file before uploading.</span>
+                                </button>
+                            </label>
+                            <div id="supportingDocumentsUploadNotice" class="upload-notice" style="display:none;">
+                                <span class="upload-notice-icon">&#10003;</span>
+                                Successfully uploaded file
+                                <button type="button" class="upload-notice-close" aria-label="Close upload message">&times;</button>
+                            </div>
+                            <div id="supportingDocumentsFileList" class="uploaded-file-list" aria-live="polite"></div>
+                            <input type="file" id="supportingDocuments" name="supportingDocuments" accept=".pdf,.doc,.docx,.xls,.xlsx,.zip,.7z" multiple>
+                            <small>Allowed extensions pdf, doc, docx, xls, xlsx, zip, 7z.</small>
+                        </div>
+                    </div>
+                </section>
+
+                <div class="form-actions dual-btns">
+                    <button type="button" class="back-btn">Back</button>
+                    <button type="button" class="continue-btn">Continue</button>
+                </div>
+            </form>
+
+            <section
+                id="paymentTab"
+                class="form-section payment-tab"
+                data-moneris-url="{{ settings['MonerisURL'] | escape }}"
+                aria-labelledby="payment-heading"
+                style="display:none;">
+                <h2 id="payment-heading">Payment</h2>
+                <p class="payment-processing-note">
+                    Please allow a few minutes for your payment to process after clicking Checkout. Do not refresh your screen.
+                </p>
+                <p id="paymentStatus" class="form-intro" aria-live="polite">Loading the secure payment form...</p>
+                <iframe
+                    id="monerisScreen"
+                    title="Secure Moneris payment"
+                    width="100%"
+                    height="800"
+                    referrerpolicy="strict-origin-when-cross-origin"></iframe>
+            </section>
+        </div>
 
     </main>
 
