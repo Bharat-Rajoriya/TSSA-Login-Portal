@@ -1,7 +1,12 @@
-﻿
-    $(document).ready(function () {
+﻿   
+const ACTIVE_PORTAL_SESSION_KEY = "activePortalSessionId";
 
-    const ACTIVE_PORTAL_SESSION_KEY = "activePortalSessionId";
+$(document).ready(function () {
+
+    if (!$("#customerInfoForm").length && !$("#homepageStep").length) {
+        return;
+    }
+
     const portalIdFromUrl = getPortalIdFromUrl();
     const $newCustomer = $('#newCustomer');
     const $existingCustomer = $('#existingCustomer');
@@ -72,7 +77,7 @@
             addValidationError(errors, "programAreaSelect", "Please select a Program Area.");
         }
 
-        if (!customerType) {
+        if (errors.length > 0) {
             showValidationErrors(errors);
             return;
         }
@@ -117,10 +122,11 @@
             }
 
             const portalSessionId = getOrCreateActivePortalSessionId();
+            const existingSessionData = getStoredPortalSession(portalSessionId) || {};
 
             const customerData = {
                 id: portalSessionId,
-                customerType: customerType,
+                customerType: "New Customer",
                 companyName: companyName,
                 streetAddress: streetAddress,
                 city: city,
@@ -128,19 +134,17 @@
                 postalCode: postalCode,
                 customerNumber: "",
                 programArea: programArea,
-                appNumber: createPrepaymentApplicationNumber()
+                appNumber: existingSessionData.appNumber || createPrepaymentApplicationNumber(),
+                portalTransactionId: existingSessionData.portalTransactionId || ""
             };
 
             sessionStorage.setItem(portalSessionId, JSON.stringify(customerData));
             sessionStorage.setItem(ACTIVE_PORTAL_SESSION_KEY, portalSessionId);
 
-            $continueBtn.text("Saving...").prop("disabled", true);
+            setButtonState($continueBtn, true, "Saving...");
             showLoadingOverlay("Saving customer details...");
 
-            const transactionPayload =
-                buildInitialNewCustomerTransactionPayload(customerData);
-
-            createPortalTransaction(transactionPayload)
+            saveCustomerTransaction(customerData)
                 .done(function (transactionId) {
                     customerData.portalTransactionId = transactionId;
 
@@ -150,15 +154,15 @@
                     );
 
                     hideLoadingOverlay();
-                    $continueBtn.text("Continue").prop("disabled", false);
+                    setButtonState($continueBtn, false, "", "Continue");
 
                     showFormSelectionStep(portalSessionId);
                 })
                 .fail(function (error) {
-                    console.error("New customer transaction creation failed:", error);
+                    console.error("New customer transaction save failed:", error);
 
                     hideLoadingOverlay();
-                    $continueBtn.text("Continue").prop("disabled", false);
+                    setButtonState($continueBtn, false, "", "Continue");
 
                     showValidationErrors([{
                         message: "Unable to save customer details. Please try again."
@@ -189,7 +193,7 @@
                 return;
             }
 
-            $continueBtn.prop("disabled", true);
+            setButtonState($continueBtn, true, "Validating...");
             showLoadingOverlay("Validating existing customer details...");
 
             verifyExistingCustomer(customerNumber, existingPostalCode, function (verificationResult) {
@@ -201,15 +205,16 @@
                     $("#existingPostalCode").addClass("input-error");
 
                     showValidationErrors([{fieldId: "customerNumber", message: "Customer verification failed. Please check Customer Number and Postal Code."}]);
-                    $continueBtn.text("Continue").prop("disabled", false);
+                    setButtonState($continueBtn, false, "", "Continue");
                     return;
                 }
 
                 const portalSessionId = getOrCreateActivePortalSessionId();
+                const existingSessionData = getStoredPortalSession(portalSessionId) || {};
 
                 const customerData = {
                     id: portalSessionId,
-                    customerType: customerType,
+                    customerType: "Existing Customer",
                     companyName: verificationResult.customerName,
                     streetAddress: verificationResult.streetAddress,
                     city: verificationResult.city,
@@ -218,13 +223,41 @@
                     customerNumber: customerNumber,
                     accountId: verificationResult.accountId,
                     programArea: programArea,
-                    existingCustomerInfoReviewed: false
+                    existingCustomerInfoReviewed: false,
+                    appNumber: existingSessionData.appNumber || createPrepaymentApplicationNumber(),
+                    portalTransactionId: existingSessionData.portalTransactionId || ""
                 };
 
                 sessionStorage.setItem(portalSessionId, JSON.stringify(customerData));
                 sessionStorage.setItem(ACTIVE_PORTAL_SESSION_KEY, portalSessionId);
-                $continueBtn.text("Continue").prop("disabled", false);
-                showExistingCustomerReviewStep(portalSessionId);
+
+                setButtonState($continueBtn, true, "Saving...");
+                showLoadingOverlay("Saving customer details...");
+
+                saveCustomerTransaction(customerData)
+                    .done(function (transactionId) {
+                        customerData.portalTransactionId = transactionId;
+
+                        sessionStorage.setItem(
+                            portalSessionId,
+                            JSON.stringify(customerData)
+                        );
+
+                        hideLoadingOverlay();
+                        setButtonState($continueBtn, false, "", "Continue");
+
+                        showExistingCustomerReviewStep(portalSessionId);
+                    })
+                    .fail(function (error) {
+                        console.error("Existing customer transaction save failed:", error);
+
+                        hideLoadingOverlay();
+                        setButtonState($continueBtn, false, "", "Continue");
+
+                        showValidationErrors([{
+                            message: "Unable to save customer details. Please try again."
+                        }]);
+                    });
             });
         }
 
@@ -243,14 +276,12 @@
             return;
         }
 
-        const portalSession = sessionStorage.getItem(portalSessionId);
+        const customerData = getStoredPortalSession(portalSessionId);
 
-        if (!portalSession) {
+        if (!customerData) {
             showPortalStep("home");
             return;
         }
-
-        const customerData = JSON.parse(portalSession);
 
         if (customerData.applicationFormNumber) {
             showServiceDetailsStep(portalSessionId);
@@ -277,14 +308,12 @@
             return;
         }
 
-        const portalSession = sessionStorage.getItem(portalSessionId);
+        const customerData = getStoredPortalSession(portalSessionId);
 
-        if (!portalSession) {
-            sessionStorage.removeItem(ACTIVE_PORTAL_SESSION_KEY);
+        if (!customerData) {
+            showPortalStep("home");
             return;
         }
-
-        const customerData = JSON.parse(portalSession);
 
         if (customerData.customerType === "New Customer") {
             $newCustomer.prop("checked", true);
@@ -307,20 +336,11 @@
     function getOrCreateActivePortalSessionId() {
         const activePortalSessionId = sessionStorage.getItem(ACTIVE_PORTAL_SESSION_KEY);
 
-        if (activePortalSessionId && sessionStorage.getItem(activePortalSessionId)) {
+        if (activePortalSessionId && getStoredPortalSession(activePortalSessionId)) {
             return activePortalSessionId;
         }
 
         return generateUUID();
-    }
-
-    function getPortalIdFromUrl() {
-        const urlParams = new URLSearchParams(window.location.search);
-        return urlParams.get("id") || urlParams.get("Id") || "";
-    }
-
-    function updateHomepageUrl(portalSessionId) {
-        return portalSessionId;
     }
 
 });
@@ -343,15 +363,72 @@ function showPortalStep(stepName) {
     }, 250);
 }
 
-function showExistingCustomerReviewStep(portalSessionId) {
+function getUrlParameter(name){
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get(name) || "";
+}
+
+function getPortalIdFromUrl() {
+    return getUrlParameter("id") || getUrlParameter("Id") || "";
+}
+
+function getStoredPortalSession(portalSessionId) {
+    if (!portalSessionId) {
+        return null;
+    }
+
     const portalSession = sessionStorage.getItem(portalSessionId);
 
     if (!portalSession) {
+        clearStoredPortalSession(portalSessionId);
+        return null;
+    }
+
+    try {
+        const customerData = JSON.parse(portalSession);
+
+        if (!customerData || typeof customerData !== "object" || Array.isArray(customerData)) {
+            throw new Error("Stored portal session is not a valid object.");
+        }
+
+        return customerData;
+    } catch (error) {
+        console.error("Invalid portal session JSON. Clearing stored portal session:", error);
+        clearStoredPortalSession(portalSessionId);
+        return null;
+    }
+}
+
+function clearStoredPortalSession(portalSessionId) {
+    if (portalSessionId) {
+        sessionStorage.removeItem(portalSessionId);
+    }
+
+    if (sessionStorage.getItem(ACTIVE_PORTAL_SESSION_KEY) === portalSessionId) {
+        sessionStorage.removeItem(ACTIVE_PORTAL_SESSION_KEY);
+    }
+}
+
+function isSinglePagePortalFlow() {
+    return $("#homepageStep").length && $("#formSelectionStep").length && $("#serviceDetailsStep").length;
+}
+
+function returnToPortalHome(fallbackUrl) {
+    if ($("#homepageStep").length) {
         showPortalStep("home");
         return;
     }
 
-    const customerData = JSON.parse(portalSession);
+    window.location.href = fallbackUrl || "../../index.html";
+}
+
+function showExistingCustomerReviewStep(portalSessionId) {
+    const customerData = getStoredPortalSession(portalSessionId);
+
+    if (!customerData) {
+        showPortalStep("home");
+        return;
+    }
 
     $("#reviewCustomerName").text(customerData.companyName || "");
     $("#reviewStreetAddress").text(customerData.streetAddress || "");
@@ -363,14 +440,13 @@ function showExistingCustomerReviewStep(portalSessionId) {
     });
 
     $(".existing-review-continue-btn").off("click.existingReview").on("click.existingReview", function () {
-        const latestPortalSession = sessionStorage.getItem(portalSessionId);
+        const latestCustomerData = getStoredPortalSession(portalSessionId);
 
-        if (!latestPortalSession) {
+        if (!latestCustomerData) {
             showPortalStep("home");
             return;
         }
 
-        const latestCustomerData = JSON.parse(latestPortalSession);
         latestCustomerData.existingCustomerInfoReviewed = true;
 
         sessionStorage.setItem(portalSessionId, JSON.stringify(latestCustomerData));
@@ -384,27 +460,27 @@ function showExistingCustomerReviewStep(portalSessionId) {
 window.showExistingCustomerReviewStep = showExistingCustomerReviewStep;
 
 function showFormSelectionStep(portalSessionId) {
-    const portalSession = sessionStorage.getItem(portalSessionId);
+    const customerData = getStoredPortalSession(portalSessionId);
 
-    if (!portalSession) {
+    if (!customerData) {
         showPortalStep("home");
         return;
     }
 
     showPortalStep("form-selection");
-    initializeDynamicFormPage(JSON.parse(portalSession), portalSessionId);
+    initializeDynamicFormPage(customerData, portalSessionId);
 }
 
 function showServiceDetailsStep(portalSessionId) {
-    const portalSession = sessionStorage.getItem(portalSessionId);
+    const customerData = getStoredPortalSession(portalSessionId);
 
-    if (!portalSession) {
+    if (!customerData) {
         showPortalStep("home");
         return;
     }
 
     showPortalStep("service-details");
-    initializeServiceDetailsPage(JSON.parse(portalSession), portalSessionId);
+    initializeServiceDetailsPage(customerData, portalSessionId);
 }
 
 // Validation for Postal Code...
@@ -534,10 +610,6 @@ function getPortalAjax(options, requestLabel) {
 }
 
 function verifyExistingCustomer(customerNumber, postalCode, callback) {
-
-    console.log("Customer Number:", customerNumber);
-    console.log("Postal Code:", postalCode);
-
     const normalizedPostalCode = postalCode
         .toUpperCase()
         .replace(/\s/g, '');
@@ -556,9 +628,6 @@ function verifyExistingCustomer(customerNumber, postalCode, callback) {
             "&$filter=" + encodeURIComponent(filter)
     }, "Validating Customer")
     .done(function(response) {
-
-        console.log("Customer Validation Response:", response);
-
         if (typeof response === "string") {
             try {
                 response = JSON.parse(response);
@@ -584,8 +653,6 @@ function verifyExistingCustomer(customerNumber, postalCode, callback) {
                 .replace(/\s/g, '');
 
             if (customerPostalCode !== normalizedPostalCode) {
-                console.log("Customer Postal Code Mismatch:", customer.address1_postalcode);
-
                 callback({
                     status: false
                 });
@@ -648,39 +715,29 @@ function generateUUID() {
 
 $(document).ready(function(){
 
-    if($("#formSelectionStep").length){
+    if(!$("#formSelectionStep").length || isSinglePagePortalFlow()){
         return;
     }
 
-    const ACTIVE_PORTAL_SESSION_KEY = "activePortalSessionId";
     const portalId = getUrlParameter('id');
 
     if(!portalId){
-        window.location.href = "../../index.html";
+        returnToPortalHome("../../index.html");
         return;
     }
 
-    const portalSession = sessionStorage.getItem(portalId);
+    const customerData = getStoredPortalSession(portalId);
 
-    if(!portalSession){
-        window.location.href = "../../index.html";
+    if(!customerData){
+        returnToPortalHome("../../index.html");
         return;
     }
-
-    const customerData = JSON.parse(portalSession);
 
     sessionStorage.setItem(ACTIVE_PORTAL_SESSION_KEY, portalId);
 
     initializeDynamicFormPage(customerData, portalId);
 
 });
-
-function getUrlParameter(name){
-    name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
-    var regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
-    var results = regex.exec(location.search);
-    return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
-}
 
 
 function initializeDynamicFormPage(customerData, portalId){
@@ -704,11 +761,11 @@ function initializeDynamicFormPage(customerData, portalId){
     const $backButtons = $("#formSelectionStep").length ? $("#formSelectionStep .back-btn") : $(".back-btn");
 
     $backButtons.off("click.formSelection").on("click.formSelection", function(){
-        const latestPortalSession = sessionStorage.getItem(portalId);
-        const latestCustomerData = latestPortalSession ? JSON.parse(latestPortalSession) : customerData;
+        const latestCustomerData = getStoredPortalSession(portalId) || customerData;
 
         if(
             latestCustomerData.customerType === "Existing Customer" &&
+            $("#existingCustomerReviewStep").length &&
             typeof window.showExistingCustomerReviewStep === "function"
         ){
             window.showExistingCustomerReviewStep(portalId);
@@ -910,167 +967,6 @@ function loadApplicationForms(programArea, portalId){
     );
 }
 
-function fetchPortalForms(programArea) {
-    const deferred = $.Deferred();
-    const selectedProgram = getProgramAreaFormCategory(programArea);
-
-    console.log("Loading forms for program:", selectedProgram);
-
-    const selectClause = "$select=cre04_tssa_formsid,cre04_field1,cre04_field2,cre04_title&$orderby=cre04_field1 asc";
-
-    const candidates = [
-        "/_api/cre04_tssa_formses?" + selectClause,
-        "/_api/cre04_tssa_forms?" + selectClause
-    ];
-
-    let attempt = 0;
-
-    function tryNext() {
-        if (attempt >= candidates.length) {
-            console.error("FORMS ERROR: all endpoints failed");
-            deferred.reject({ message: "All form endpoints failed" });
-            return;
-        }
-
-        const url = candidates[attempt++];
-        console.log("Attempting forms API:", url);
-
-        getPortalAjax({
-            type: "GET",
-            url: url
-        }, "Loading Application Forms")
-            .done(function (response) {
-                console.log("Forms API Response (from", url + "):", response);
-
-                response = parseDataverseResponse(response);
-
-                if (!response || !response.value || !Array.isArray(response.value)) {
-                    console.warn("Forms API returned unexpected shape from", url);
-                    tryNext();
-                    return;
-                }
-
-                const forms = response.value
-                    .map(parsePortalFormRecord)
-                    .filter(function (form) {
-                        return form && formMatchesProgramArea(form, programArea);
-                    });
-
-                console.log(
-                    "Forms matched for program:",
-                    forms.length,
-                    "of",
-                    response.value.length
-                );
-
-                deferred.resolve(forms);
-            })
-            .fail(function (error) {
-                console.error("FORMS ERROR from", url, error);
-                // try the next candidate
-                tryNext();
-            });
-    }
-
-    tryNext();
-
-    return deferred.promise();
-}
-
-function parsePortalFormRecord(record) {
-    const rawField1 = (record.cre04_field1 || "").toString();
-    const code = extractFormCode(rawField1);
-    const title = (record.cre04_field2 && record.cre04_field2.toString().trim()) || extractTitleFromField1(rawField1) || code;
-    const programCategory = (record.cre04_title || "").toString().trim();
-
-    if (!code) {
-        return null;
-    }
-
-    return {
-        code: code,
-        title: title,
-        programCategory: programCategory,
-        id: record.cre04_tssa_formsid || ""
-    };
-}
-
-function formMatchesProgramArea(form, programArea) {
-    const expectedCategory = normalizeString(getProgramAreaFormCategory(programArea));
-    const actualCategory = normalizeString(form.programCategory);
-    const code = (form.code || "").toUpperCase();
-    const prefixes = getProgramAreaCodePrefixes(programArea);
-
-    if (actualCategory && actualCategory === expectedCategory) {
-        return true;
-    }
-
-    return prefixes.some(function (prefix) {
-        return code.indexOf(prefix.toUpperCase()) === 0;
-    });
-}
-
-function extractFormCode(rawField1) {
-    const match = rawField1.trim().match(/^([A-Za-z0-9]+-[A-Za-z0-9]+(?:-v\d+)?)/i);
-    return match ? match[1] : rawField1.trim();
-}
-
-function extractTitleFromField1(rawField1) {
-    const code = extractFormCode(rawField1);
-
-    if (!code) {
-        return rawField1.trim();
-    }
-
-    return rawField1.substring(code.length + 1).trim();
-}
-
-function getProgramAreaFormCategory(programArea) {
-    const categories = {
-        "amusement-devices": "Amusement Devices",
-        "boilers-pressure-vessels": "Boilers & Pressure Vessels",
-        "elevating-devices": "Elevating Devices",
-        "fuels": "Fuels",
-        "operating-engineers": "Operating Engineers",
-        "public-information": "Public Information",
-        "ski-lifts": "Ski Lifts"
-    };
-
-    return categories[programArea] || "";
-}
-
-function getProgramAreaCodePrefixes(programArea) {
-    const prefixes = {
-        "amusement-devices": ["AD-"],
-        "boilers-pressure-vessels": ["BPV-"],
-        "elevating-devices": ["ED-"],
-        "fuels": ["FS-"],
-        "operating-engineers": ["OE-", "TSSA-"],
-        "public-information": ["PI-"],
-        "ski-lifts": ["Ski-"]
-    };
-
-    return prefixes[programArea] || [];
-}
-
-function normalizeString(value) {
-    return (value || "").toString().trim().toLowerCase().replace(/\s+/g, " ").replace(/&/g, "and");
-}
-
-function getProgramAreaVisibleTableTitle(programArea) {
-    const titles = {
-        "amusement-devices": "Amusement Devices Application Forms",
-        "boilers-pressure-vessels": "Boilers & Pressure Vessels Application Forms",
-        "elevating-devices": "Elevating Devices Application Forms",
-        "fuels": "Fuels Application Forms",
-        "operating-engineers": "Operating Engineers Application Forms",
-        "public-information": "Public Information Application Forms",
-        "ski-lifts": "Ski Application Forms"
-    };
-
-    return titles[programArea] || "";
-}
-
 // Normalize responses from Dataverse/Power Pages AJAX helpers
 function parseDataverseResponse(response) {
 
@@ -1125,36 +1021,61 @@ function renderEmptyFormSelection(visibleTableTitle) {
 }
 
 function renderApplicationForms(forms, portalId, visibleTableTitle, visibleTableRows) {
-    $("#applicationFormSelect").empty();
-    $("#applicationFormSelect").append('<option value="">Please select an Application Form.</option>');
-    $("#applicationFormSelect").prop("disabled", false);
-    $("#formSelectionStep .continue-form-btn").prop("disabled", false);
+    const $continueButtons = $("#formSelectionStep").length ? $("#formSelectionStep .continue-form-btn") : $(".continue-form-btn");
+    const $applicationFormSelect = $("#applicationFormSelect");
+
+    $applicationFormSelect.empty();
+    $applicationFormSelect.append(
+        $("<option></option>")
+            .val("")
+            .text("Please select an Application Form.")
+    );
+    $applicationFormSelect.prop("disabled", false);
+    $continueButtons.prop("disabled", false);
 
     forms.forEach(function (form) {
         const optionText = form.title ? form.code + ' - ' + form.title : form.code;
-        $("#applicationFormSelect").append('<option value="' + form.code + '">' + optionText + '</option>');
+
+        $applicationFormSelect.append(
+            $("<option></option>")
+                .val(form.code)
+                .text(optionText)
+        );
     });
 
-    const sessionData = JSON.parse(sessionStorage.getItem(portalId));
+    const sessionData = getStoredPortalSession(portalId);
 
-    if (sessionData.applicationFormNumber) {
-        $("#applicationFormSelect").val(sessionData.applicationFormNumber);
+    if (!sessionData) {
+        returnToPortalHome("../../index.html");
+        return;
     }
 
-    let tableHtml = '<table class="program-form-table">';
-    tableHtml += '<tr><th colspan="2">' + visibleTableTitle + '</th></tr>';
+    if (sessionData.applicationFormNumber) {
+        $applicationFormSelect.val(sessionData.applicationFormNumber);
+    }
 
+    const $table = $('<table class="program-form-table"></table>');
+    const $headerRow = $("<tr></tr>");
     const visibleForms = visibleTableRows || getVisibleFormTableRows(forms);
 
+    $headerRow.append(
+        $("<th></th>")
+            .attr("colspan", "2")
+            .text(visibleTableTitle)
+    );
+    $table.append($headerRow);
+
     visibleForms.forEach(function (form) {
-        tableHtml += '<tr><td>' + form.code + '</td><td>' + form.title + '</td></tr>';
+        const $row = $("<tr></tr>");
+
+        $row.append($("<td></td>").text(form.code));
+        $row.append($("<td></td>").text(form.title));
+        $table.append($row);
     });
 
-    tableHtml += '</table>';
+    $("#formDescriptionTable").empty().append($table);
 
-    $("#formDescriptionTable").html(tableHtml);
-
-    $(".continue-form-btn").off("click.formSelection").on("click.formSelection", function () {
+    $continueButtons.off("click.formSelection").on("click.formSelection", function () {
         clearFormSelectionErrors();
 
         const selectedForm = $("#applicationFormSelect").val();
@@ -1165,7 +1086,13 @@ function renderApplicationForms(forms, portalId, visibleTableTitle, visibleTable
             return;
         }
 
-        const sessionData = JSON.parse(sessionStorage.getItem(portalId));
+        const sessionData = getStoredPortalSession(portalId);
+
+        if (!sessionData) {
+            returnToPortalHome("../../index.html");
+            return;
+        }
+
         sessionData.applicationFormNumber = selectedForm;
         sessionData.applicationFormTitle = $("#applicationFormSelect option:selected").text();
 
@@ -1173,7 +1100,7 @@ function renderApplicationForms(forms, portalId, visibleTableTitle, visibleTable
 
         console.log("Step 2 completed:", sessionData);
 
-        if (typeof window.showServiceDetailsStep === "function") {
+        if ($("#serviceDetailsStep").length && typeof window.showServiceDetailsStep === "function") {
             window.showServiceDetailsStep(portalId);
             return;
         }
@@ -1257,6 +1184,7 @@ const ALLOWED_UPLOAD_EXTENSIONS = ["pdf", "doc", "docx", "xls", "xlsx", "7z", "z
 const PORTAL_TRANSACTION_TABLE = "tssa_portaltransactionhistories";
 const PORTAL_TRANSACTION_ID_FIELD = "tssa_portaltransactionhistoryid";
 const PORTAL_TRANSACTION_TYPE = 551630010;
+const PORTAL_APPLICATION_DATA_FIELD = "tssa_applicationdata";
 const DEFAULT_INITIATING_CONTACT_ID = "85b3bffb-f2de-ef11-a730-6045bdf9b477";
 const DEFAULT_INITIATING_ACCOUNT_ID = "28ade32d-179d-ef11-8a6a-000d3a09e82b";
 const DEFAULT_SUBMITTER_ACCOUNT_ID = "58193b56-e917-ed11-b83e-000d3af4f400";
@@ -1265,26 +1193,23 @@ let supportingDocumentFiles = [];
 
 $(document).ready(function(){
 
-    if($("#serviceDetailsStep").length){
+    if(!$("#serviceDetailsStep").length || isSinglePagePortalFlow()){
         return;
     }
 
-    const ACTIVE_PORTAL_SESSION_KEY = "activePortalSessionId";
     const portalId = getUrlParameter("id");
 
     if(!portalId){
-        window.location.href = "../../index.html";
+        returnToPortalHome("../../index.html");
         return;
     }
 
-    const portalSession = sessionStorage.getItem(portalId);
+    const customerData = getStoredPortalSession(portalId);
 
-    if(!portalSession){
-        window.location.href = "../../index.html";
+    if(!customerData){
+        returnToPortalHome("../../index.html");
         return;
     }
-
-    const customerData = JSON.parse(portalSession);
 
     if(!customerData.applicationFormNumber){
         window.location.href = "form-selection.html?id=" + portalId;
@@ -1317,7 +1242,7 @@ function initializeServiceDetailsPage(customerData, portalId){
     const $backButtons = $("#serviceDetailsStep").length ? $("#serviceDetailsStep .back-btn") : $(".back-btn");
 
     $backButtons.off("click.serviceDetails").on("click.serviceDetails", function(){
-        if(typeof window.showFormSelectionStep === "function"){
+        if($("#formSelectionStep").length && typeof window.showFormSelectionStep === "function"){
             window.showFormSelectionStep(portalId);
             return;
         }
@@ -1462,7 +1387,7 @@ function handleApplicationFormUpload(input){
         return;
     }
 
-    if(applicationFormFiles.length >= MAX_APPLICATION_FORM_FILES || selectedFiles.length > MAX_APPLICATION_FORM_FILES){
+    if(selectedFiles.length > MAX_APPLICATION_FORM_FILES){
         $(input).addClass("input-error");
         showServiceDetailsErrors([{fieldId: "applicationFormUpload", message: "The maximum number of Application Form file uploads is 1."}]);
         syncInputFiles(input, applicationFormFiles);
@@ -1573,9 +1498,21 @@ function replaceDuplicateFiles(existingFiles, selectedFiles){
     return mergedFiles;
 }
 
+function revokeSelectedFileUrls($list){
+    const objectUrls = $list.data("objectUrls") || [];
+
+    objectUrls.forEach(function(objectUrl){
+        URL.revokeObjectURL(objectUrl);
+    });
+
+    $list.removeData("objectUrls");
+}
+
 function renderSelectedFiles(files, listSelector, noticeSelector, removeCallback){
     const $list = $(listSelector);
+    const objectUrls = [];
 
+    revokeSelectedFileUrls($list);
     $list.empty();
 
     if(files.length === 0){
@@ -1587,6 +1524,7 @@ function renderSelectedFiles(files, listSelector, noticeSelector, removeCallback
 
     files.forEach(function(file, index){
         const fileUrl = URL.createObjectURL(file);
+        objectUrls.push(fileUrl);
         const $row = $('<div class="uploaded-file-row"></div>');
         const $details = $('<div class="uploaded-file-details"></div>');
         const $text = $('<div class="uploaded-file-text"></div>');
@@ -1615,8 +1553,14 @@ function renderSelectedFiles(files, listSelector, noticeSelector, removeCallback
         $list.append($row);
     });
 
+    $list.data("objectUrls", objectUrls);
     $(noticeSelector).slideDown();
 }
+
+$(window).off("beforeunload.filePreview").on("beforeunload.filePreview", function(){
+    revokeSelectedFileUrls($("#applicationFormFileList"));
+    revokeSelectedFileUrls($("#supportingDocumentsFileList"));
+});
 
 function formatFileSize(bytes){
     const megabytes = bytes / (1024 * 1024);
@@ -1800,8 +1744,13 @@ function saveServiceDetails(portalId, usesHstFees, usesAdditionalAuthorizationFe
         return;
     }
 
-    const sessionData = JSON.parse(sessionStorage.getItem(portalId));
+    const sessionData = getStoredPortalSession(portalId);
     const $continueButton = $("#serviceDetailsForm .continue-btn");
+
+    if (!sessionData) {
+        returnToPortalHome("../../index.html");
+        return;
+    }
 
     sessionData.serviceDetails = serviceDetails;
     sessionData.appNumber = sessionData.appNumber || createPrepaymentApplicationNumber();
@@ -1819,9 +1768,21 @@ function saveServiceDetails(portalId, usesHstFees, usesAdditionalAuthorizationFe
             verifyPortalTransactionForPayment(transactionId)
                 .done(function(transaction){
                     console.log("Payment transaction verified:", transaction);
-                    hideLoadingOverlay();
-                    setPaymentSubmitState($continueButton, false);
-                    showEmbeddedMonerisPayment(sessionData);
+
+                    debugPortalPaymentPrerequisites(transactionId)
+                        .done(function(){
+                            hideLoadingOverlay();
+                            setPaymentSubmitState($continueButton, false);
+                            showEmbeddedMonerisPayment(sessionData);
+                        })
+                        .fail(function(error){
+                            console.error("Portal payment prerequisites failed:", error);
+                            hideLoadingOverlay();
+                            setPaymentSubmitState($continueButton, false);
+                            showServiceDetailsErrors([{
+                                message: "The payment transaction is missing required fee details. Please try again."
+                            }]);
+                        });
                 })
                 .fail(function(error){
                     console.error("Payment transaction verification failed:", error);
@@ -1843,132 +1804,178 @@ function saveServiceDetails(portalId, usesHstFees, usesAdditionalAuthorizationFe
 }
 
 function savePortalTransaction(sessionData){
-    const payload = buildPortalTransactionPayload(sessionData);
-
-    if(sessionData.portalTransactionId){
-        return updatePortalTransaction(sessionData.portalTransactionId, payload);
-    }
-
-    return createPortalTransaction(payload);
+    return saveCustomerTransaction(sessionData);
 }
 
-function buildPortalTransactionPayload(sessionData){
-    const accountId = normalizeGuid(sessionData.accountId) || DEFAULT_INITIATING_ACCOUNT_ID;
-    const applicationData = {
+function buildTransactionApplicationData(customerData) {
+    const isExistingCustomer = customerData.customerType === "Existing Customer";
+    const accountId = normalizeGuid(customerData.accountId) || DEFAULT_INITIATING_ACCOUNT_ID;
+
+    return {
+        customerFlowType: customerData.customerType || "",
+        customerType: customerData.customerType || "",
+
         requestorInfoExistAccount: accountId,
         submitterAccount: DEFAULT_SUBMITTER_ACCOUNT_ID,
-        pointOfContact: sessionData.customerType === "Existing Customer" ? "Yes" : "No",
-        applicationType: sessionData.applicationFormTitle || sessionData.applicationFormNumber || "",
-        applicationFormNumber: sessionData.applicationFormNumber || "",
-        programArea: sessionData.programArea || "",
-        customerType: sessionData.customerType || "",
-        customerNumber: sessionData.customerNumber || "",
-        customerName: sessionData.companyName || "",
-        streetAddress: sessionData.streetAddress || "",
-        city: sessionData.city || "",
-        province: sessionData.province || "",
-        postalCode: sessionData.postalCode || "",
-        totalFees: sessionData.serviceDetails.totalFees,
-        totalFeesAmount: getCurrencyNumber(sessionData.serviceDetails.totalFees).toFixed(2),
-        serviceDetails: sessionData.serviceDetails,
-        applicationId: sessionData.appNumber
+        pointOfContact: isExistingCustomer ? "Yes" : "No",
+
+        CRN: "No",
+        applicationType: "",
+        jobReferenceNo: customerData.appNumber || "",
+        designType: "",
+        mandatedNonMandated: "",
+        existingCRN: "",
+        drawingDesignNo: "",
+        applicationId: "",
+
+        customerDetails: {
+            companyName: customerData.companyName || "",
+            streetAddress: customerData.streetAddress || "",
+            city: customerData.city || "",
+            province: customerData.province || "",
+            postalCode: customerData.postalCode || "",
+            customerNumber: customerData.customerNumber || "",
+            accountId: customerData.accountId || "",
+            programArea: customerData.programArea || ""
+        },
+
+        portalMeta: {
+            stage: "customer-information",
+            createdFromPortal: true,
+            savedAt: new Date().toISOString()
+        }
     };
+}
+
+function buildPortalTransactionPayload(customerData) {
+    const accountId = normalizeGuid(customerData.accountId) || DEFAULT_INITIATING_ACCOUNT_ID;
+    const applicationData = buildTransactionApplicationData(customerData);
+    const referenceNumber = customerData.appNumber || createPrepaymentApplicationNumber();
+
     const payload = {
         tssa_portaltransactiontype: PORTAL_TRANSACTION_TYPE,
-        tssa_referencenumberfromclient: sessionData.appNumber,
-        tssa_interimapplicationdatajson: JSON.stringify(applicationData)
+        tssa_referencenumberfromclient: referenceNumber
     };
+
+    payload[PORTAL_APPLICATION_DATA_FIELD] = JSON.stringify(applicationData);
 
     payload["tssa_InitiatingContact@odata.bind"] =
         "/contacts(" + DEFAULT_INITIATING_CONTACT_ID + ")";
+
     payload["tssa_InitiatingAccount@odata.bind"] =
         "/accounts(" + accountId + ")";
 
-    return payload;
-}
-
-function buildInitialNewCustomerTransactionPayload(customerData) {
-    const applicationData = {
-        stage: "customer-information",
-        customerType: customerData.customerType || "New Customer",
-        companyName: customerData.companyName || "",
-        streetAddress: customerData.streetAddress || "",
-        city: customerData.city || "",
-        province: customerData.province || "",
-        postalCode: customerData.postalCode || "",
-        customerNumber: "",
-        programArea: customerData.programArea || "",
-        applicationId: customerData.appNumber || "",
-        createdFromPortal: true,
-        createdAt: new Date().toISOString()
-    };
-
-    const payload = {
-        tssa_portaltransactiontype: PORTAL_TRANSACTION_TYPE,
-        tssa_referencenumberfromclient: customerData.appNumber,
-        tssa_interimapplicationdatajson: JSON.stringify(applicationData)
-    };
-
-    // Temporary/default references required by transaction table.
-    // Confirm with Abhishek if these should be changed for New Customer records.
-    payload["tssa_InitiatingContact@odata.bind"] =
-        "/contacts(" + DEFAULT_INITIATING_CONTACT_ID + ")";
-
-    payload["tssa_InitiatingAccount@odata.bind"] =
-        "/accounts(" + DEFAULT_INITIATING_ACCOUNT_ID + ")";
+    addPrepaymentFieldsToPortalTransactionPayload(payload, customerData, referenceNumber);
 
     return payload;
 }
 
-function createPortalTransaction(payload){
+function addPrepaymentFieldsToPortalTransactionPayload(payload, customerData, referenceNumber) {
+    const serviceDetails = customerData.serviceDetails;
+
+    if (!serviceDetails) {
+        return;
+    }
+
+    const tax = getCurrencyNumber(serviceDetails.hstFee);
+    const total = getCurrencyNumber(serviceDetails.totalFees);
+    const subtotal = Math.max(0, total - tax);
+
+    payload.tssa_applicationnumber = referenceNumber;
+    payload.tssa_expectedprepaymentsubtotal = subtotal;
+    payload.tssa_expectedprepaymenttax = tax;
+    payload.tssa_expectedprepaymenttotal = total;
+}
+
+function createPortalTransaction(payload) {
     const deferred = $.Deferred();
 
-    getPortalAjax({
+    if (!window.webapi || typeof window.webapi.safeAjax !== "function") {
+        console.error("webapi.safeAjax is not available.");
+        deferred.reject({
+            message: "webapi.safeAjax is not available."
+        });
+        return deferred.promise();
+    }
+
+    webapi.safeAjax({
         type: "POST",
         url: "/_api/" + PORTAL_TRANSACTION_TABLE,
         contentType: "application/json",
         data: JSON.stringify(payload)
-    }, "Creating Payment Transaction")
-        .done(function(response, textStatus, xhr){
-            const transactionId = extractPortalTransactionId(response, xhr);
+    })
+    .done(function (res, status, xhr) {
+        const newRecordId = extractPortalTransactionId(res, xhr);
 
-            if(!transactionId){
-                deferred.reject({message: "Transaction ID was not returned."});
-                return;
-            }
+        if (!newRecordId) {
+            console.error("Record created, but entity id was not returned.", {
+                response: res,
+                xhr: xhr
+            });
 
-            deferred.resolve(transactionId);
-        })
-        .fail(function(error){
-            deferred.reject(error);
-        });
+            deferred.reject({
+                message: "Record created, but entity id was not returned."
+            });
+
+            return;
+        }
+
+        console.log("Record created successfully with ID:", newRecordId);
+        deferred.resolve(newRecordId);
+    })
+    .fail(function (xhr) {
+        console.error("Insert failed:", xhr && xhr.responseText ? xhr.responseText : xhr);
+        deferred.reject(xhr);
+    });
 
     return deferred.promise();
 }
 
-function updatePortalTransaction(transactionId, payload){
+function updatePortalTransaction(transactionId, payload) {
     const deferred = $.Deferred();
     const normalizedTransactionId = normalizeGuid(transactionId);
 
-    if(!normalizedTransactionId){
-        deferred.reject({message: "Invalid transaction ID."});
+    if (!normalizedTransactionId) {
+        deferred.reject({
+            message: "Invalid transaction ID."
+        });
         return deferred.promise();
     }
 
-    getPortalAjax({
+    if (!window.webapi || typeof window.webapi.safeAjax !== "function") {
+        console.error("webapi.safeAjax is not available.");
+        deferred.reject({
+            message: "webapi.safeAjax is not available."
+        });
+        return deferred.promise();
+    }
+
+    webapi.safeAjax({
         type: "PATCH",
         url: "/_api/" + PORTAL_TRANSACTION_TABLE + "(" + normalizedTransactionId + ")",
         contentType: "application/json",
         data: JSON.stringify(payload)
-    }, "Updating Payment Transaction")
-        .done(function(){
-            deferred.resolve(normalizedTransactionId);
-        })
-        .fail(function(error){
-            deferred.reject(error);
-        });
+    })
+    .done(function () {
+        console.log("Record updated successfully with ID:", normalizedTransactionId);
+        deferred.resolve(normalizedTransactionId);
+    })
+    .fail(function (xhr) {
+        console.error("Update failed:", xhr && xhr.responseText ? xhr.responseText : xhr);
+        deferred.reject(xhr);
+    });
 
     return deferred.promise();
+}
+
+function saveCustomerTransaction(customerData) {
+    const payload = buildPortalTransactionPayload(customerData);
+
+    if (customerData.portalTransactionId) {
+        return updatePortalTransaction(customerData.portalTransactionId, payload);
+    }
+
+    return createPortalTransaction(payload);
 }
 
 function verifyPortalTransactionForPayment(transactionId){
@@ -1986,7 +1993,10 @@ function verifyPortalTransactionForPayment(transactionId){
             "/_api/" + PORTAL_TRANSACTION_TABLE + "(" + normalizedTransactionId + ")" +
             "?$select=" +
             PORTAL_TRANSACTION_ID_FIELD +
-            ",tssa_portaltransactiontype,tssa_referencenumberfromclient"
+            ",tssa_portaltransactiontype,tssa_referencenumberfromclient" +
+            ",tssa_applicationnumber,tssa_expectedprepaymentsubtotal" +
+            ",tssa_invoicepaymenttotal,tssa_expectedprepaymenttax" +
+            ",tssa_expectedprepaymenttotal"
     }, "Verifying Payment Transaction")
         .done(function(response){
             const transaction = parseDataverseResponse(response);
@@ -2017,24 +2027,74 @@ function verifyPortalTransactionForPayment(transactionId){
     return deferred.promise();
 }
 
-function extractPortalTransactionId(response, xhr){
-    const parsedResponse = parseDataverseResponse(response);
+function debugPortalPaymentPrerequisites(transactionId) {
+    const deferred = $.Deferred();
+    const normalizedTransactionId = normalizeGuid(transactionId);
 
-    if(parsedResponse && parsedResponse[PORTAL_TRANSACTION_ID_FIELD]){
-        return normalizeGuid(parsedResponse[PORTAL_TRANSACTION_ID_FIELD]);
+    if (!normalizedTransactionId) {
+        deferred.reject({
+            message: "Invalid transaction ID."
+        });
+        return deferred.promise();
     }
 
+    const url =
+        "/_api/" + PORTAL_TRANSACTION_TABLE + "(" + normalizedTransactionId + ")" +
+        "?$select=tssa_applicationnumber,tssa_expectedprepaymentsubtotal" +
+        ",tssa_invoicepaymenttotal,tssa_expectedprepaymenttax" +
+        ",tssa_expectedprepaymenttotal,tssa_portaltransactiontype";
+
+    getPortalAjax({
+        type: "GET",
+        url: url,
+        contentType: "application/json"
+    }, "Checking Portal Payment Fields")
+        .done(function(res) {
+            console.log("Portal transaction payment prerequisite check:", res);
+
+            const transaction = parseDataverseResponse(res);
+            const paymentFields = {
+                applicationNumber: transaction && transaction.tssa_applicationnumber,
+                subtotal: transaction && transaction.tssa_expectedprepaymentsubtotal,
+                tax: transaction && transaction.tssa_expectedprepaymenttax,
+                total: transaction && transaction.tssa_expectedprepaymenttotal,
+                invoiceTotal: transaction && transaction.tssa_invoicepaymenttotal,
+                transactionType: transaction && transaction.tssa_portaltransactiontype
+            };
+
+            console.log("Transaction payment fields:", paymentFields);
+
+            if (!paymentFields.applicationNumber || getCurrencyNumber(paymentFields.total) <= 0) {
+                deferred.reject({
+                    message: "Required payment fields are missing on the transaction.",
+                    paymentFields: paymentFields
+                });
+                return;
+            }
+
+            deferred.resolve(transaction);
+        })
+        .fail(function(xhr) {
+            console.error("Unable to check portal transaction payment fields:", xhr);
+            deferred.reject(xhr);
+        });
+
+    return deferred.promise();
+}
+
+function extractPortalTransactionId(response, xhr) {
     const entityIdHeader = xhr && (
         xhr.getResponseHeader("entityid") ||
         xhr.getResponseHeader("OData-EntityId") ||
         xhr.getResponseHeader("Location")
     );
+
     const idMatch = entityIdHeader && entityIdHeader.match(/\(([^)]+)\)/);
 
     return normalizeGuid(idMatch ? idMatch[1] : entityIdHeader);
 }
 
-function normalizeGuid(value){
+function normalizeGuid(value) {
     const match = String(value || "").match(
         /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i
     );
@@ -2042,25 +2102,36 @@ function normalizeGuid(value){
     return match ? match[0].toLowerCase() : "";
 }
 
-function createPrepaymentApplicationNumber(){
+function createPrepaymentApplicationNumber() {
     const now = new Date();
     const datePart =
         now.getFullYear() +
         String(now.getMonth() + 1).padStart(2, "0") +
         String(now.getDate()).padStart(2, "0");
+
     const randomPart = Math.random().toString(36).slice(2, 8).toUpperCase();
 
     return "PREPAY-" + datePart + "-" + randomPart;
 }
 
-function setPaymentSubmitState($button, isBusy){
-    if(isBusy){
-        $button.data("original-text", $button.text());
-        $button.text("Preparing Payment...").prop("disabled", true);
+function setButtonState($button, isBusy, busyText, normalText) {
+    if (isBusy) {
+        if (!$button.data("original-text")) {
+            $button.data("original-text", $button.text());
+        }
+
+        $button.text(busyText || "Please wait...").prop("disabled", true);
         return;
     }
 
-    $button.text($button.data("original-text") || "Continue").prop("disabled", false);
+    $button
+        .text(normalText || $button.data("original-text") || "Continue")
+        .prop("disabled", false)
+        .removeData("original-text");
+}
+
+function setPaymentSubmitState($button, isBusy){
+    setButtonState($button, isBusy, "Preparing Payment...");
 }
 
 function showEmbeddedMonerisPayment(sessionData) {
@@ -2077,7 +2148,7 @@ function showEmbeddedMonerisPayment(sessionData) {
     let iframeUrl;
 
     try {
-        iframeUrl = buildMonerisPaymentUrl(monerisUrl, transactionId, sessionData);
+        iframeUrl = buildMonerisPaymentUrl(monerisUrl, transactionId);
     } catch (error) {
         console.error("Invalid Moneris URL:", error);
 
@@ -2112,10 +2183,6 @@ function showEmbeddedMonerisPayment(sessionData) {
         iframeMessage: iframeMessage
     });
 
-    console.log(iframeUrl);
-    const targetOrigins = iframeUrl.origin;
-    const iframeMessages = { retrylink: iframeUrl.toString() };
-
     $("#serviceDetailsForm").hide();
     $("#paymentStatus").text("Loading the secure payment form...");
     $paymentTab.show();
@@ -2140,14 +2207,14 @@ function showEmbeddedMonerisPayment(sessionData) {
     }, 400);
 }
 
-function buildMonerisPaymentUrl(monerisUrl, transactionId, sessionData) {
+function buildMonerisPaymentUrl(monerisUrl, transactionId) {
     const iframeUrl = new URL(monerisUrl, window.location.origin);
 
     iframeUrl.search = "";
     iframeUrl.hash = "";
 
-    iframeUrl.searchParams.set("transactionId", transactionId);
-    iframeUrl.searchParams.set("transactionType", String(PORTAL_TRANSACTION_TYPE));
+    iframeUrl.searchParams.set("transactionid", transactionId);
+    iframeUrl.searchParams.set("transactiontype", "551630010");
 
     return iframeUrl;
 }
@@ -2174,11 +2241,13 @@ function bindMonerisMessageListener(targetOrigin, iframe, sessionData){
         .off("message.moneris")
         .on("message.moneris", function(event){
             const originalEvent = event.originalEvent;
+            const iframeWindow = iframe && iframe.contentWindow;
 
             if(
                 !originalEvent ||
+                !iframeWindow ||
                 originalEvent.origin !== targetOrigin ||
-                originalEvent.source !== iframe.contentWindow
+                originalEvent.source !== iframeWindow
             ){
                 return;
             }
@@ -2239,9 +2308,6 @@ function savePaymentResult(sessionData, status, result){
     sessionStorage.setItem(sessionData.id, JSON.stringify(sessionData));
 
     const payload = buildPortalTransactionPayload(sessionData);
-    const applicationData = JSON.parse(payload.tssa_interimapplicationdatajson);
-    applicationData.payment = sessionData.payment;
-    payload.tssa_interimapplicationdatajson = JSON.stringify(applicationData);
 
     updatePortalTransaction(sessionData.portalTransactionId, payload)
         .fail(function(error){
